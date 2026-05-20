@@ -1,0 +1,33 @@
+
+
+# ==========================================
+# 1. AI MODELS & WEIGHTS (Matches your tree exactly)
+# ==========================================
+models/
+outputs/
+unsloth_compiled_cache/
+.cache/
+huggingface/
+
+# ==========================================
+# 2. LOCAL DATA & DATABASES (Enterprise Privacy)
+# ==========================================
+data/temp/
+data/knowledge_base/chroma_db/
+storage/*.db
+storage/*.sqlite
+
+# ==========================================
+# 3. PYTHON & DEVELOPMENT CACHES
+# ==========================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# ==========================================
+# 4. CONFIGURATIONS & ENVIRONMENTS
+# ==========================================
+.vscode/
+.env

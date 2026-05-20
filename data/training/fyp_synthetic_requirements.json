@@ -1,0 +1,32 @@
+[
+    {
+        "bad_requirement": "The website should load pretty fast for users.",
+        "document_reference": "ISO/IEC 25010:2011 (Performance efficiency - Time behaviour)",
+        "analysis": "This requirement is not verifiable and is ambiguous. 'Pretty fast' is subjective and cannot be objectively measured or tested, making it impossible to determine if the requirement has been met. This violates the principle of measurable performance criteria.",
+        "suggested_rewrite": "The system shall load the main dashboard page within 3 seconds for 95% of concurrent users under normal operating conditions."
+    },
+    {
+        "bad_requirement": "The smart factory machines will share their data with the central system.",
+        "document_reference": "Industry4WRD (Technology Pillar - Data sharing and Interoperability)",
+        "analysis": "This requirement lacks specificity regarding the type of data, data format, frequency of sharing, and the communication protocol to be used. This ambiguity hinders true interoperability and proper integration, which is a core tenet of Industry4WRD for smart manufacturing.",
+        "suggested_rewrite": "The CNC machines (Model X, Y, Z) shall transmit real-time production status data (job ID, part count, error codes) in JSON format via MQTT protocol to the central Manufacturing Execution System (MES) every 5 seconds."
+    },
+    {
+        "bad_requirement": "Users can easily find products on the e-commerce platform.",
+        "document_reference": "ISO/IEC/IEEE 29148 (Characteristic: Unambiguous, Verifiable)",
+        "analysis": "The term 'easily' is subjective and not measurable. This requirement does not specify how product discovery should be facilitated (e.g., search, filtering, categorization) nor does it provide objective criteria for verification. This makes it impossible to test or confirm compliance.",
+        "suggested_rewrite": "The e-commerce platform shall provide a search function that allows users to locate products by keyword, category, and price range, returning relevant results within 2 seconds for 90% of queries."
+    },
+    {
+        "bad_requirement": "All manufactured components will have a way to know where they came from.",
+        "document_reference": "ISO 9001:2008 (7.5.3 Identification and traceability)",
+        "analysis": "This requirement is vague regarding the method of identification and traceability. It does not specify how components will be identified, what information will be traceable (e.g., raw materials, production batch, operator), or the system/process for achieving this, making compliance and auditing difficult.",
+        "suggested_rewrite": "The Manufacturing Execution System (MES) shall assign a unique serial number to each manufactured component, linking it to its raw material batch, production date, machine ID, and operator ID, stored in a database for a minimum of 10 years."
+    },
+    {
+        "bad_requirement": "The government digital service portal needs to be secure.",
+        "document_reference": "Malaysia Economy Digital Blueprint (Pillar 2: Digital Government - Cybersecurity and Trust)",
+        "analysis": "This requirement is too generic and lacks specific details regarding the security measures, standards, or threats it aims to address. The MyDIGITAL blueprint emphasizes robust cybersecurity measures, which necessitates specific and verifiable requirements rather than broad statements to ensure national digital security.",
+        "suggested_rewrite": "The government digital service portal shall implement end-to-end encryption (TLS 1.3), enforce multi-factor authentication (MFA) for all administrative access, and comply with the National Cybersecurity Policy (NCSP) framework, including regular penetration testing and vulnerability assessments."
+    }
+]
