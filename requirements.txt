@@ -3,6 +3,7 @@ langchain-google-genai
 google-genai
 
 pydantic
+werkzeug
 
 
 # --- Index URLs for Hardware Acceleration ---
