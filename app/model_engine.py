@@ -22,6 +22,9 @@ def load_pipeline_resources():
     if not os.path.exists(MODEL_DIR):
         raise FileNotFoundError(f"Missing fine-tuned adapter weights directory at: {MODEL_DIR}")
         
+    # FIX: Ensure the Chroma vector space directory structure exists to prevent initialization exceptions
+    os.makedirs(DB_DIR, exist_ok=True)
+        
     # 🤖 MODEL 2: Fine-Tuned Local Llama Adapter (GPU Isolated)
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=MODEL_DIR,
@@ -31,11 +34,10 @@ def load_pipeline_resources():
     )
     FastLanguageModel.for_inference(model)
     
-    # PaddleOCR Ingestion Tool (Forced on CPU)
+    # and isolate it strictly to your CPU threads
     ocr_engine = PaddleOCR(use_textline_orientation=True, lang='en')
     
     # 🤖 MODEL 1: Router Embedding Layer (Forced on CPU to save VRAM)
-    # FIX: Updated to BAAI/bge-m3 to match your ChromaDB's 1024-dimension structure
     embeddings = HuggingFaceEmbeddings(
         model_name="BAAI/bge-m3",
         model_kwargs={'device': 'cpu'}
