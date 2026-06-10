@@ -44,7 +44,8 @@ def register_user(username, password, full_name, email, role="User"):
     conn = sqlite3.connect(AUTH_DB_PATH)
     cursor = conn.cursor()
     
-    hashed_pw = generate_password_hash(password)
+    # Forces a faster hashing algorithm
+    hashed_pw = generate_password_hash(password, method='pbkdf2:sha256:10000')
     
     try:
         cursor.execute("""
@@ -58,31 +59,48 @@ def register_user(username, password, full_name, email, role="User"):
     finally:
         conn.close()
 
-def verify_login(username, password):
-    """Checks the database and returns validation status, role, and full name."""
+def verify_login(username_or_email: str, password: str):
     conn = sqlite3.connect(AUTH_DB_PATH)
     cursor = conn.cursor()
-    
-    cursor.execute("SELECT password_hash, role, full_name FROM users WHERE username = ?", (username,))
-    user_record = cursor.fetchone()
-    conn.close()
-    
-    if user_record:
-        stored_hash, role, full_name = user_record
-        if check_password_hash(stored_hash, password):
-            # Return True, plus the user's role and full name for the UI
-            return True, role, full_name
+    try:
+        cursor.execute("""
+            SELECT id, password_hash, role, full_name 
+            FROM users 
+            WHERE username = ? OR email = ?
+        """, (username_or_email, username_or_email))
+        row = cursor.fetchone()
+        
+        # If user exists and password is correct
+        if row and check_password_hash(row[1], password):
+            user_id = row[0]
+            current_hash = row[1]
             
+            # ✨ THE FIX: Check if they are using an old, slow hash
+            if not current_hash.startswith('pbkdf2:sha256:10000'):
+                # Generate a new fast hash using the password they just typed
+                new_fast_hash = generate_password_hash(password, method='pbkdf2:sha256:10000')
+                # Overwrite their old hash in the database
+                cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_fast_hash, user_id))
+                conn.commit()
+                print(f"Upgraded password hash for user ID {user_id}")
+                
+            return True, row[2], row[3]  # Returns is_valid, role, full_name
+            
+    except sqlite3.Error as e:
+        print(f"Auth database error: {e}")
+    finally:
+        conn.close()
     return False, None, None
 
 # =====================================================================
 # MODULE 3: AUDIT LOGS & DATA FLYWHEEL (training_pool.db)
 # =====================================================================
+# =====================================================================
+# MODULE 3: AUDIT LOGS & DATA FLYWHEEL (training_pool.db)
+# =====================================================================
 def init_sqlite_pool():
     """Initializes a local database to store pending training samples."""
-    # Explicitly create the storage folder on your drive if it's missing
     os.makedirs(os.path.dirname(SQLITE_DB_PATH), exist_ok=True)
-    
     conn = sqlite3.connect(SQLITE_DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -93,20 +111,27 @@ def init_sqlite_pool():
             matched_rule TEXT,
             model_output TEXT,
             status TEXT DEFAULT 'Pending',
-            is_validated INTEGER DEFAULT 0
+            is_validated INTEGER DEFAULT 0,
+            username TEXT 
         )
     """)
+    # Automatically upgrade older databases that are missing the username column
+    try:
+        cursor.execute("ALTER TABLE audit_logs ADD COLUMN username TEXT")
+    except sqlite3.OperationalError:
+        pass # Column already exists, safe to ignore
+    
     conn.commit()
     conn.close()
     
-def log_audit_to_db(bad_req, doc_ref, raw_ai_output):
+def log_audit_to_db(username, bad_req, doc_ref, raw_ai_output):
     """Parses raw AI text strings and caches them into the shadow data pool."""
     conn = sqlite3.connect(SQLITE_DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT INTO audit_logs (requirement, matched_rule, model_output, status, is_validated)
-        VALUES (?, ?, ?, 'Pending', 0)
-    """, (bad_req, doc_ref, raw_ai_output))
+        INSERT INTO audit_logs (username, requirement, matched_rule, model_output, status, is_validated)
+        VALUES (?, ?, ?, ?, 'Pending', 0)
+    """, (username, bad_req, doc_ref, raw_ai_output))
     conn.commit()
     conn.close()
 
@@ -188,20 +213,45 @@ def delete_log_entry(log_id: int):
     finally:
         conn.close()
  
-def fetch_user_history():
-    """Fetches all validated logs to display in the User History tab."""
+def fetch_user_history(username: str):
+    """Fetches ONLY the logs that belong to the currently logged-in user."""
     conn = sqlite3.connect(SQLITE_DB_PATH) 
-    query = """ 
+    query = """
         SELECT timestamp, requirement, matched_rule, status 
         FROM audit_logs 
-        WHERE is_validated = 1 OR status = 'Validated'
+        WHERE username = ?
         ORDER BY timestamp DESC
     """
     try:
-        df = pd.read_sql_query(query, conn)
+        df = pd.read_sql_query(query, conn, params=(username,))
     except Exception as e:
         print(f"Database read issue handled: {e}")
         df = pd.DataFrame(columns=["timestamp", "requirement", "matched_rule", "status"])
     finally:
         conn.close()
     return df
+
+def get_user_details(username: str):
+    """Fetches current user details for the Profile page."""
+    conn = sqlite3.connect(AUTH_DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT full_name, email, role FROM users WHERE username = ?", (username,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return {"full_name": row[0], "email": row[1], "role": row[2]}
+    return None
+
+def update_user_profile(username: str, full_name: str, email: str):
+    """Saves edited profile details back to the database."""
+    conn = sqlite3.connect(AUTH_DB_PATH)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE users SET full_name = ?, email = ? WHERE username = ?", (full_name, email, username))
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"Profile update error: {e}")
+        return False
+    finally:
+        conn.close()
