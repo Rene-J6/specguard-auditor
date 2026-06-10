@@ -95,9 +95,6 @@ def verify_login(username_or_email: str, password: str):
 # =====================================================================
 # MODULE 3: AUDIT LOGS & DATA FLYWHEEL (training_pool.db)
 # =====================================================================
-# =====================================================================
-# MODULE 3: AUDIT LOGS & DATA FLYWHEEL (training_pool.db)
-# =====================================================================
 def init_sqlite_pool():
     """Initializes a local database to store pending training samples."""
     os.makedirs(os.path.dirname(SQLITE_DB_PATH), exist_ok=True)
