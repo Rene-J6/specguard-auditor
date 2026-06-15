@@ -2,407 +2,255 @@ import os
 import gc
 import re  
 import warnings
-import json
-import sqlite3
+import shutil
+from fastapi import FastAPI, File, UploadFile, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
 import torch
-import streamlit as st
+from fastapi.responses import StreamingResponse
+import json
 
-# =====================================================================
-# PATH RESOLUTIONS & SETTINGS
-# =====================================================================
-# Safety Settings for local GPU inference
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-warnings.filterwarnings("ignore")
-
-# Resolve absolute workspace paths dynamically
+# Resolve absolute workspace paths
 CURRENT_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(CURRENT_SCRIPT_DIR)
 TEMP_DIR = os.path.join(PROJECT_ROOT, "data", "temp")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# Custom module imports from split architecture layout files
+# Custom module imports from your existing layout
 from database import (
     init_sqlite_pool, log_audit_to_db, fetch_unvalidated_logs, 
     update_log_status, delete_log_entry, init_auth_db, 
     register_user, verify_login, fetch_user_history,
-    get_user_details, update_user_profile  # Make sure this is added to database.py!
+    get_user_details, update_user_profile
 )
 from utils import clean_document_text, extract_text_from_file
 from model_engine import load_pipeline_resources
 
-# Initialize databases on startup
+# Initialize databases
 init_sqlite_pool()
 init_auth_db()
 
-# =====================================================================
-# HELPER FUNCTIONS
-# =====================================================================
-def format_scannable_clause(raw_clause: str, max_chars: int = 250) -> str:
-    """Cleans up hanging text fragments and limits lengths for UI scannability."""
-    cleaned = raw_clause.strip()
-    cleaned = re.sub(r'^[a-z\s,.\-\)]+', '', cleaned)
-    if cleaned and cleaned[0].islower():
-        cleaned = cleaned[0].upper() + cleaned[1:]
-    if len(cleaned) > max_chars:
-        return cleaned[:max_chars].strip() + "..."
-    return cleaned
+# Initialize FastAPI app
+app = FastAPI(title="SpecGuard Core API", version="1.0.0")
 
-# =====================================================================
-# PAGE CONFIGURATION & STATE INITIALIZATION
-# =====================================================================
-st.set_page_config(page_title="SpecGuard", layout="wide", initial_sidebar_state="collapsed")
+# Enable CORS for the React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust this to your specific frontend URL in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-if "current_page" not in st.session_state:
-    st.session_state["current_page"] = "Dashboard"
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-if "username" not in st.session_state:
-    st.session_state["username"] = ""
-if "full_name" not in st.session_state:
-    st.session_state["full_name"] = ""
-if "role" not in st.session_state:
-    st.session_state["role"] = None
-if 'raw_text' not in st.session_state: 
-    st.session_state['raw_text'] = ""
-if 'reqs' not in st.session_state: 
-    st.session_state['reqs'] = []
-if 'audit_results' not in st.session_state: 
-    st.session_state['audit_results'] = {}
+# Global variables for AI resources
+model = None
+tokenizer = None
+ocr_engine = None
+db = None
 
-
-# =====================================================================
-# GLOBAL RESOURCE INITIALIZATION (Fixes Post-Login Freeze)
-# =====================================================================
-# Moving this outside the login block ensures models load on startup, not on login
-try:
-    with st.spinner("Initializing SpecGuard AI Framework Engine Core..."):
+@app.on_event("startup")
+def startup_event():
+    """Loads and caches the heavy weights once when the server boots up."""
+    global model, tokenizer, ocr_engine, db
+    try:
         model, tokenizer, ocr_engine, db = load_pipeline_resources()
-except Exception as e:
-    st.error(f"Critical System Initialization Failure: {e}")
+        print("SpecGuard Core Engine components loaded successfully.")
+    except Exception as e:
+        print(f"Error initializing core engine components: {e}")
 
 # =====================================================================
-# MODULE 1: AUTHENTICATION MODAL
+# REQUEST & RESPONSE SCHEMAS
 # =====================================================================
-def render_login_page():
-    # Use columns to push the login box to the center of the screen
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        st.markdown("<h2 style='text-align: center;'>Welcome to SpecGuard</h2>", unsafe_allow_html=True)
-        st.markdown("---")
-        
-        tab_login, tab_register = st.tabs(["🔑 Login", "📝 Sign Up"])
-    
-    with tab_login:
-        # Wrapping in a form removes "Press Enter to apply" completely
-        with st.form(key="login_form_clear"):
-            st.subheader("Account Login")
-            log_username = st.text_input("Username or Email", key="auth_login_user")
-            log_password = st.text_input("Password", type="password", key="auth_login_pass")
-            submit_login = st.form_submit_button("Login", width='stretch', type="primary")
-            
-            if submit_login:
-                is_valid, role, full_name = verify_login(log_username, log_password)
-                if is_valid:
-                    st.session_state['logged_in'] = True
-                    st.session_state['role'] = role
-                    st.session_state['username'] = log_username
-                    st.session_state['full_name'] = full_name
-                    st.rerun()
-                else:
-                    st.error("Invalid credentials. Please try again.")
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
-    with tab_register:
-        with st.form(key="register_form_clear"):
-            st.subheader("Create an Account")
-            reg_fullname = st.text_input("Full Legal Name *", key="reg_val_name")
-            reg_email = st.text_input("Department Email Address *", key="reg_val_email")
-            reg_username = st.text_input("Desired Username *", key="reg_val_user")
-            reg_password = st.text_input("Password *", type="password", key="reg_val_pass")
-            reg_confirm = st.text_input("Confirm Password *", type="password", key="reg_val_conf")
-            submit_reg = st.form_submit_button("Register", width='stretch', type="primary")
-            
-            if submit_reg:
-                if not all([reg_fullname, reg_email, reg_username, reg_password, reg_confirm]):
-                    st.error("All fields are required.")
-                elif reg_password != reg_confirm:
-                    st.error("Passwords do not match.")
-                else:
-                    success, message = register_user(reg_username, reg_password, reg_fullname, reg_email)
-                    if success:
-                        st.success("Registration successful! You can now use the Login tab.")
-                    else:
-                        st.error(message)
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    full_name: str
+    email: str
+
+class ProfileUpdateRequest(BaseModel):
+    username: str
+    full_name: str
+    email: str
+
+class AnalysisRequest(BaseModel):
+    username: str
+    raw_text: str
+
+class ValidationRequest(BaseModel):
+    validated_text: str
+    status: str = "Validated"
 
 # =====================================================================
-# MAIN LAYOUT & ROUTING
+# ENDPOINTS
 # =====================================================================
-def main():
 
-    # ✨ NEW: Global CSS to override Streamlit's default massive padding values and UI quirks
-    st.markdown("""
-        <style>
-        /* Force the main page content area to sit tightly at the top of the screen */
-        .block-container { padding-top: 2.5rem !important; padding-bottom: 0rem !important; }
-        
-        /* Reduce the massive spacing around standard columns */
-        [data-testid="stHorizontalBlock"] { gap: 0rem !important; }
-        
-        /* Tighten up internal spacing inside the profile Popover dropdown container */
-        div[data-testid="stPopoverBody"] { padding: 12px !important; }
-
-        /* ✨ FIX 1: Hide the "Press Enter to submit form" helper text */
-        [data-testid="InputInstructions"] { display: none !important; }
-
-        /* ✨ FIX 2: Block Edge/Chrome from injecting a second native password eye icon */
-        input[type="password"]::-ms-reveal,
-        input[type="password"]::-ms-clear { display: none !important; }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # --- HEADER NAVIGATION ---
-    header_col1, header_col2 = st.columns([7, 3])
-    with header_col1:
-        st.markdown("<h1 style='margin:0; padding:0; line-height:1.2;'>🛡️ SpecGuard</h1>", unsafe_allow_html=True)
+@app.post("/api/auth/register")
+def register(payload: RegisterRequest):
+    if not all([payload.username, payload.password, payload.full_name, payload.email]):
+        raise HTTPException(status_code=400, detail="All fields are required.")
     
-    with header_col2:
-        st.markdown("<div style='margin-top: 4px;'>", unsafe_allow_html=True)
-        
-        if st.session_state["logged_in"]:
-            with st.popover(f"👤 {st.session_state['full_name']}", width='stretch'):
-                st.markdown(f"<p style='margin: 0; padding: 0;'><b>Role:</b> {st.session_state['role']}</p>", unsafe_allow_html=True)
-                st.markdown("<hr style='margin: 6px 0px 10px 0px; border: 0; border-top: 1px solid #e6e6e6;'>", unsafe_allow_html=True)
-                if st.button("Personal Profile", width='stretch'):
-                    st.session_state["current_page"] = "Profile"
-                    st.rerun()
-                if st.button("Logout", type="primary", width='stretch'):
-                    st.session_state.clear()
-                    st.rerun()
-        else:
-            # ✨ THE TRUE MAGIC SPACER: 
-            # Matches the exact pixel height of a Streamlit button (38px) 
-            # PLUS its hidden native bottom margin (16px).
-            st.markdown("<div style='height: 38px; margin-bottom: 16px;'></div>", unsafe_allow_html=True)
-            
-        st.markdown("</div>", unsafe_allow_html=True)
+    success, message = register_user(
+        payload.username, payload.password, payload.full_name, payload.email
+    )
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+    return {"message": message}
 
-    # ✨ THE UNIFIED DIVIDER: 
-    # Because the row height is now locked, this single line works flawlessly on every page.
-    st.markdown("<hr style='margin: -25px 0px 15px 0px; border: none; border-top: 1px solid #e6e6e6;'>", unsafe_allow_html=True)
-
-    # =====================================================================
-    # THE MASTER PAGE ROUTER
-    # =====================================================================
+@app.post("/api/auth/login")
+def login(payload: LoginRequest):
+    is_valid, role, full_name = verify_login(payload.username, payload.password)
+    if not is_valid:
+        raise HTTPException(status_code=401, detail="Invalid username/email or password.")
     
-    # 1. IF NOT LOGGED IN -> Show Login Page & Stop Rendering
-    if not st.session_state["logged_in"]:
-        render_login_page()
-        return 
+    user_details = get_user_details(payload.username) or {}
+    return {
+        "username": payload.username,
+        "full_name": full_name,
+        "role": role,
+        "email": user_details.get("email", "")
+    }
 
-    # 2. IF LOGGED IN -> Show Profile
-    if st.session_state["current_page"] == "Profile":
-        st.header("👤 Personal Profile Settings")
+@app.get("/api/profile/{username}")
+def get_profile(username: str):
+    details = get_user_details(username)
+    if not details:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return details
+
+@app.put("/api/profile")
+def update_profile(payload: ProfileUpdateRequest):
+    success = update_user_profile(payload.username, payload.full_name, payload.email)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update profile.")
+    return {"message": "Profile updated successfully."}
+
+@app.post("/api/analysis/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """Saves document temporarily, extracts text layer or runs OCR, and cleans results."""
+    if not ocr_engine:
+        raise HTTPException(status_code=503, detail="OCR engine is not loaded yet.")
+
+    temp_path = os.path.join(TEMP_DIR, file.filename)
+    try:
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
         
-        if st.button("← Back to Dashboard"):
-            st.session_state["current_page"] = "Dashboard"
-            st.rerun()
-            
-        st.markdown("---")
-        
-        user_data = get_user_details(st.session_state["username"])
-        if user_data:
-            col_prof1, col_prof2 = st.columns([1, 2])
-            with col_prof1:
-                with st.form("profile_edit_form"):
-                    st.subheader("Edit Information")
-                    edit_name = st.text_input("Full Name", value=user_data["full_name"])
-                    edit_email = st.text_input("Email Address", value=user_data["email"])
-                    st.text_input("System Role", value=user_data["role"], disabled=True)
-                    
-                    if st.form_submit_button("Save Changes", type="primary", use_container_width=True):
-                        if update_user_profile(st.session_state["username"], edit_name, edit_email):
-                            st.session_state["full_name"] = edit_name 
-                            st.success("Profile updated successfully!")
-                            st.rerun()
-                        else:
-                            st.error("Failed to update profile.")
-        return # Stop rendering the rest of the app if on the Profile page
+        extracted_raw = extract_text_from_file(temp_path, file.content_type, ocr_engine)
+        cleaned = clean_document_text(extracted_raw)
+        return {"extracted_text": cleaned}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Text extraction failed: {e}")
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
-    # 3. IF LOGGED IN -> Show Dashboard
-    if st.session_state["current_page"] == "Dashboard":
+@app.post("/api/analysis/run")
+def run_audit(payload: AnalysisRequest):
+    """Processes requirements against standard rules, streaming results as they are computed."""
+    global model, tokenizer, db
+    if not all([model, tokenizer, db]):
+        raise HTTPException(status_code=503, detail="AI models or vectors are not initialized yet.")
 
-        if st.session_state["role"] == "Admin":
-            tabs = st.tabs(["🔍 Analysis", "📜 History", "👑 Admin Dashboard"])
-            admin_tab = tabs[2]
-        else:
-            tabs = st.tabs(["🔍 Analysis", "📜 History"])
-            admin_tab = None
+    sentences = re.split(r'(?<=[.!?]) +', payload.raw_text)
+    keywords = ["shall", "should", "must", "needs to", "will", "required to"]
+    reqs = [
+        s.strip().replace("\n", " ") 
+        for s in sentences 
+        if any(k in s.lower() for k in keywords) and len(s.strip()) > 15
+    ]
 
-        # --- MODULE 2: ANALYSIS TAB ---
-        with tabs[0]:
-            # Using HTML removes Streamlit's massive default header margins
-            st.markdown("<h3 style='margin-top: 5px; margin-bottom: 15px;'>Requirement Analysis Workspace</h3>", unsafe_allow_html=True)
-            
-            uploaded_file = st.file_uploader("Upload Specification Documents (.pdf, .png, .jpg)", type=["pdf", "png", "jpg"])
-            
-            if uploaded_file and st.button("Extract Text"):
-                temp_path = os.path.join(TEMP_DIR, uploaded_file.name)
-                with open(temp_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                with st.spinner("Parsing digital layers and running OCR if needed..."):
-                    extracted_raw = extract_text_from_file(temp_path, uploaded_file.type, ocr_engine)
-                    st.session_state['raw_text'] = clean_document_text(extracted_raw)
-                    st.session_state['reqs'] = []
-                    st.session_state['audit_results'] = {}
-                    st.success("Text extracted successfully!")
-                    st.rerun()
+    if not reqs:
+        def empty_generator():
+            yield json.dumps({"type": "empty", "message": "No compliance keywords found."}) + "\n"
+        return StreamingResponse(empty_generator(), media_type="text/event-stream")
 
-            if st.session_state['raw_text']:
-                st.subheader("Extracted Text")
-                st.text_area("Raw Document Content", value=st.session_state['raw_text'], height=200, disabled=True)
-                
-                # Removed the [1, 4] columns here to give the button and results full width!
-                if st.button("▶ Run Analysis", type="primary"):
-                    sentences = re.split(r'(?<=[.!?]) +', st.session_state['raw_text'])
-                    keywords = ["shall", "should", "must", "needs to", "will", "required to"]
-                    st.session_state['reqs'] = [s.strip().replace("\n", " ") for s in sentences if any(k in s.lower() for k in keywords) and len(s.strip()) > 15]
-                    st.session_state['audit_results'] = {}
-                    
-                    if not st.session_state['reqs']:
-                        st.warning("No compliance keywords (shall, must, etc.) found in the text.")
-                    else:
-                        st.subheader("Analysis Progress")
-                        progress_bar = st.progress(0.0)
-                        status_text = st.empty()
-                        results_container = st.container()
-                        
-                        total_reqs = len(st.session_state['reqs'])
-                        
-                        for idx, current_req in enumerate(st.session_state['reqs']):
-                            progress = float((idx + 1) / total_reqs)
-                            progress_bar.progress(progress)
-                            status_text.write(f"Analyzing requirement {idx + 1} / {total_reqs}...")
-                            
-                            docs = db.similarity_search(current_req, k=1)
-                            if docs:
-                                matched_doc = docs[0]
-                                source_filename = os.path.basename(matched_doc.metadata.get('source', 'Unknown'))
-                                clause_text = matched_doc.page_content
-                            else:
-                                source_filename = "General Standards"
-                                clause_text = "Standard Requirements Engineering Framework"
-                            
-                            pipeline_input = f"Req: {current_req}\nRule: {clause_text}"
-                            prompt = f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nAnalyze this software requirement against the matched framework standard rule.<|eot_id|><|start_header_id|>user<|end_header_id|>\n{pipeline_input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n"
-                            
-                            inputs = tokenizer([prompt], return_tensors="pt").to("cuda")
-                            with torch.no_grad():
-                                outputs = model.generate(**inputs, max_new_tokens=400, use_cache=True)
-                            
-                            res = tokenizer.decode(outputs[0], skip_special_tokens=True).split("assistant\n")[-1].strip()
-                            
-                            final_analysis = res
-                            final_rewrite = "No rewrite suggested."
-                            if "### Suggested Rewrite" in res:
-                                parts = res.split("### Suggested Rewrite")
-                                final_analysis = parts[0].replace("### Analysis", "").strip()
-                                final_rewrite = parts[1].strip()
-                            
-                            log_audit_to_db(st.session_state["username"], current_req, f"{source_filename} | {clause_text}", res)
-                            
-                            # ✨ NEW HORIZONTAL LAYOUT ✨
-                            with results_container:
-                                with st.expander(f"✅ Requirement {idx + 1} Analyzed", expanded=True):
-                                    # Split the expander into two horizontal columns
-                                    res_col1, res_col2 = st.columns(2)
-                                    with res_col1:
-                                        st.markdown("**❌ Original Requirement:**")
-                                        # ✨ Custom Blue Box that hugs the text perfectly
-                                        st.markdown(f"<div style='background-color: #eef4ff; color: #004fb0; padding: 12px 16px; border-radius: 8px; width: fit-content; margin-bottom: 15px;'>{current_req}</div>", unsafe_allow_html=True)
-                                        
-                                        st.markdown(f"**📖 Matched Rule ({source_filename}):**")
-                                        st.caption(format_scannable_clause(clause_text, 150))
-                                        
-                                    with res_col2:
-                                        st.markdown("**🔍 AI Evaluation:**")
-                                        st.write(final_analysis)
-                                        st.markdown("**✅ Suggested Rewrite:**")
-                                        # ✨ Custom Green Box that hugs the text perfectly
-                                        st.markdown(f"<div style='background-color: #e6f4ea; color: #137333; padding: 12px 16px; border-radius: 8px; width: fit-content; margin-bottom: 15px;'>{final_rewrite}</div>", unsafe_allow_html=True)
-                            
-                            del inputs, outputs
-                            torch.cuda.empty_cache()
-                            gc.collect()
-                            
-                        status_text.success(f"Batch audit of {total_reqs} requirements complete!")
-
-        # =====================================================================
-        # MODULE 4: HISTORY TAB (Read-Only)
-        # =====================================================================
-        with tabs[1]:
-            st.header("Document History")
-            st.write("View past submitted requirements and their verified results.")
-            
-            history_df = fetch_user_history(st.session_state["username"]) 
-            if history_df.empty:
-                st.info("No verified history available yet.")
+    def analysis_generator():
+        total_reqs = len(reqs)
+        for idx, current_req in enumerate(reqs):
+            docs = db.similarity_search(current_req, k=1)
+            if docs:
+                matched_doc = docs[0]
+                source_filename = os.path.basename(matched_doc.metadata.get('source', 'Unknown'))
+                clause_text = matched_doc.page_content
             else:
-                st.dataframe(
-                    history_df,
-                    width='stretch',
-                    hide_index=True,
-                    column_config={
-                        "timestamp": "Date Processed",
-                        "requirement": "Target Requirement",
-                        "status": "Audit Status"
-                    }
-                )
+                source_filename = "General Standards"
+                clause_text = "Standard Requirements Engineering Framework"
 
-        # =====================================================================
-        # MODULE 5: ADMIN DASHBOARD (Role-Restricted)
-        # =====================================================================
-        if admin_tab:
-            with admin_tab:
-                st.header("Admin Validation Hub")
-                st.subheader("Data Flywheel Curation Matrix")
-                
-                unvalidated_df = fetch_unvalidated_logs()
-                
-                if unvalidated_df.empty:
-                    st.success("✨ All logged transactions have been successfully validated!")
-                else:
-                    st.info(f"📥 Found {len(unvalidated_df)} pending transactions awaiting validation.")
-                    st.markdown("---")
-                    
-                    # ✨ NEW UI: Creates a clickable row for every single pending log
-                    for index, row_data in unvalidated_df.iterrows():
-                        log_id = row_data["id"]
-                        short_req = row_data["requirement"][:70] + "..." if len(row_data["requirement"]) > 70 else row_data["requirement"]
-                        
-                        # The Expander acts as the clickable row
-                        with st.expander(f"🔹 Log #{log_id} | {row_data['timestamp']} | {short_req}"):
-                            
-                            with st.form(key=f"validation_form_{log_id}"):
-                                st.text_area("❌ Original Requirement:", value=row_data["requirement"], disabled=True, height=100)
-                                st.text_area("📖 Matched Rule:", value=row_data["matched_rule"], disabled=True, height=100)
-                                
-                                edited_output = st.text_area(
-                                    "Model Evaluation Output (Editable for Ground Truth):", 
-                                    value=row_data["model_output"], 
-                                    height=200
-                                )
-                                
-                                col_btn1, col_btn2 = st.columns(2)
-                                with col_btn1:
-                                    if st.form_submit_button("✅ Approve & Export for Training", type="primary", use_container_width=True):
-                                        update_log_status(log_id, validated_text=edited_output, status="Validated")
-                                        st.success(f"Log ID #{log_id} appended to JSONL training data!")
-                                        st.rerun()
-                                with col_btn2:
-                                    if st.form_submit_button("🗑️ Reject & Delete Log", use_container_width=True):
-                                        delete_log_entry(log_id)
-                                        st.warning("Log purged.")
-                                        st.rerun()
+            pipeline_input = f"Req: {current_req}\nRule: {clause_text}"
+            prompt = (
+                f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
+                f"Analyze this software requirement against the matched framework standard rule.<|eot_id|>"
+                f"<|start_header_id|>user<|end_header_id|>\n{pipeline_input}<|eot_id|>"
+                f"<|start_header_id|>assistant<|end_header_id|>\n"
+            )
+
+            inputs = tokenizer([prompt], return_tensors="pt").to("cuda")
+            with torch.no_grad():
+                outputs = model.generate(**inputs, max_new_tokens=400, use_cache=True)
+
+            res = tokenizer.decode(outputs[0], skip_special_tokens=True).split("assistant\n")[-1].strip()
+
+            final_analysis = res
+            final_rewrite = "No rewrite suggested."
+            if "### Suggested Rewrite" in res:
+                parts = res.split("### Suggested Rewrite")
+                final_analysis = parts[0].replace("### Analysis", "").strip()
+                final_rewrite = parts[1].strip()
+
+            # Save record to audit DB
+            log_audit_to_db(payload.username, current_req, f"{source_filename} | {clause_text}", res)
+
+            # Package result
+            chunk_data = {
+                "type": "result",
+                "progress": {
+                    "current": idx + 1,
+                    "total": total_reqs
+                },
+                "data": {
+                    "requirement": current_req,
+                    "source_filename": source_filename,
+                    "clause_text": clause_text,
+                    "analysis": final_analysis,
+                    "suggested_rewrite": final_rewrite
+                }
+            }
+            # Stream out as a newline-delimited JSON string
+            yield json.dumps(chunk_data) + "\n"
+
+            # Memory clean up
+            del inputs, outputs
+            torch.cuda.empty_cache()
+            gc.collect()
+
+    return StreamingResponse(analysis_generator(), media_type="text/event-stream")
+
+@app.get("/api/history/{username}")
+def get_user_history(username: str):
+    df = fetch_user_history(username)
+    # Convert pandas dataframe into list of dictionaries
+    return df.to_dict(orient="records")
+
+@app.get("/api/admin/logs")
+def get_logs():
+    df = fetch_unvalidated_logs()
+    return df.to_dict(orient="records")
+
+@app.post("/api/admin/logs/{log_id}/validate")
+def validate_log(log_id: int, payload: ValidationRequest):
+    update_log_status(log_id, validated_text=payload.validated_text, status=payload.status)
+    return {"message": f"Log {log_id} verified and exported."}
+
+@app.delete("/api/admin/logs/{log_id}")
+def purge_log(log_id: int):
+    delete_log_entry(log_id)
+    return {"message": f"Log {log_id} deleted."}
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

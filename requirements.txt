@@ -14,7 +14,7 @@ werkzeug
 #torch == 2.11.0
 #torchvision
 #torchaudio
-paddlepaddle-gpu==3.3.0
+paddleocr == 2.7.3
 
 # --- The Auditor Engine (Unsloth) ---
 unsloth @ git+https://github.com/unslothai/unsloth.git
@@ -37,7 +37,10 @@ sentence-transformers
 chromadb
 
 # --- UI & Data Processing ---
-streamlit
+# streamlit
+fastapi
+uvicorn
+python-multipart
 pdfplumber
 python-docx
 pandas
