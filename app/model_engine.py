@@ -1,24 +1,8 @@
 import os
 import gc
-import sys
-
-# 🩹 MONKEY-PATCH: Fix NumPy 2.0 compatibility for the unmaintained 'imgaug' library
-try:
-    import numpy as np
-    if not hasattr(np, "sctypes"):
-        # Recreate the deleted sctypes mapping so older packages can resolve their scalar types
-        np.sctypes = {
-            "int": [np.int8, np.int16, np.int32, np.int64, int],
-            "uint": [np.uint8, np.uint16, np.uint32, np.uint64, np.uint],
-            "float": [np.float16, np.float32, np.float64, np.longdouble],
-        }
-except Exception as e:
-    print(f"NumPy 2.0 monkey-patch notice: {e}")
-
-# Standard Imports
 import torch
+import easyocr  # Import EasyOCR instead of PaddleOCR
 from unsloth import FastLanguageModel
-from paddleocr import PaddleOCR
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -48,8 +32,8 @@ def load_pipeline_resources():
     )
     FastLanguageModel.for_inference(model)
     
-    # Run PaddleOCR on CPU to completely avoid DLL and RTX 4060 VRAM limitations
-    ocr_engine = PaddleOCR(use_textline_orientation=True, lang='en')
+    # 📷 MODEL 3: EasyOCR Reader (Natively utilizes your RTX 4060 GPU via PyTorch)
+    ocr_engine = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
     
     # 🤖 MODEL 1: Router Embedding Layer (Forced on CPU to save VRAM)
     embeddings = HuggingFaceEmbeddings(

@@ -1,13 +1,34 @@
+# =====================================================================
+# FORCE EXPANDABLE SEGMENTS TO PREVENT VRAM FRAGMENTATION CRASHES
+# =====================================================================
 import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
+# =====================================================================
+# 1. INITIALIZE PYTORCH FIRST (Secures DLL search paths on Windows)
+# =====================================================================
+import sys
+
+try:
+    import torch
+    torch_lib_path = os.path.join(os.path.dirname(torch.__file__), 'lib')
+    if os.path.exists(torch_lib_path) and hasattr(os, 'add_dll_directory'):
+        os.add_dll_directory(torch_lib_path)
+except Exception as e:
+    print(f"PyTorch DLL loader notice: {e}")
+
+# =====================================================================
+# 2. STANDARD SYSTEM IMPORTS
+# =====================================================================
 import gc
 import re  
 import warnings
 import shutil
+import uuid
 from fastapi import FastAPI, File, UploadFile, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-import torch
 from fastapi.responses import StreamingResponse
 import json
 
@@ -17,12 +38,17 @@ PROJECT_ROOT = os.path.dirname(CURRENT_SCRIPT_DIR)
 TEMP_DIR = os.path.join(PROJECT_ROOT, "data", "temp")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# Custom module imports from your existing layout
+# Custom module imports
 from database import (
     init_sqlite_pool, log_audit_to_db, fetch_unvalidated_logs, 
     update_log_status, delete_log_entry, init_auth_db, 
     register_user, verify_login, fetch_user_history,
-    get_user_details, update_user_profile
+    get_user_details, update_user_profile,
+    fetch_expert_queue, fetch_document_requirements,
+    lock_requirement_set, unlock_requirement_set, submit_expert_review,
+    fetch_user_notifications, mark_notification_as_read, delete_notification,
+    fetch_document_comparison, fetch_expert_audited_logs,
+    fetch_all_admin_logs
 )
 from utils import clean_document_text, extract_text_from_file
 from model_engine import load_pipeline_resources
@@ -32,18 +58,16 @@ init_sqlite_pool()
 init_auth_db()
 
 # Initialize FastAPI app
-app = FastAPI(title="SpecGuard Core API", version="1.0.0")
+app = FastAPI(title="SpecGuard Core API", version="2.0.0")
 
-# Enable CORS for the React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust this to your specific frontend URL in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Global variables for AI resources
 model = None
 tokenizer = None
 ocr_engine = None
@@ -51,7 +75,6 @@ db = None
 
 @app.on_event("startup")
 def startup_event():
-    """Loads and caches the heavy weights once when the server boots up."""
     global model, tokenizer, ocr_engine, db
     try:
         model, tokenizer, ocr_engine, db = load_pipeline_resources()
@@ -71,31 +94,51 @@ class RegisterRequest(BaseModel):
     password: str
     full_name: str
     email: str
+    role: Optional[str] = "User"
+    phone_number: Optional[str] = ""
+    company_name: Optional[str] = ""
 
 class ProfileUpdateRequest(BaseModel):
     username: str
     full_name: str
     email: str
+    phone_number: Optional[str] = ""
+    company_name: Optional[str] = ""
+    password: Optional[str] = ""
 
 class AnalysisRequest(BaseModel):
     username: str
     raw_text: str
+    document_name: Optional[str] = "Untitled Document"
 
-class ValidationRequest(BaseModel):
-    validated_text: str
-    status: str = "Validated"
+class LockRequest(BaseModel):
+    document_id: str
+    expert_username: str
+
+class UnlockRequest(BaseModel):
+    document_id: str
+    expert_username: str
+
+class SingleRequirementReview(BaseModel):
+    id: int
+    expert_evaluation: str
+    expert_rewrite: str
+
+class SubmitReviewRequest(BaseModel):
+    document_id: str
+    expert_username: str
+    reviews: List[SingleRequirementReview]
+    is_approved: bool
 
 # =====================================================================
-# ENDPOINTS
+# ROUTING CONTROLLER ENDPOINTS
 # =====================================================================
 
 @app.post("/api/auth/register")
 def register(payload: RegisterRequest):
-    if not all([payload.username, payload.password, payload.full_name, payload.email]):
-        raise HTTPException(status_code=400, detail="All fields are required.")
-    
     success, message = register_user(
-        payload.username, payload.password, payload.full_name, payload.email
+        payload.username, payload.password, payload.full_name, payload.email, payload.role,
+        payload.phone_number, payload.company_name
     )
     if not success:
         raise HTTPException(status_code=400, detail=message)
@@ -105,7 +148,7 @@ def register(payload: RegisterRequest):
 def login(payload: LoginRequest):
     is_valid, role, full_name = verify_login(payload.username, payload.password)
     if not is_valid:
-        raise HTTPException(status_code=401, detail="Invalid username/email or password.")
+        raise HTTPException(status_code=401, detail="Invalid credentials.")
     
     user_details = get_user_details(payload.username) or {}
     return {
@@ -124,17 +167,18 @@ def get_profile(username: str):
 
 @app.put("/api/profile")
 def update_profile(payload: ProfileUpdateRequest):
-    success = update_user_profile(payload.username, payload.full_name, payload.email)
+    success = update_user_profile(
+        payload.username, payload.full_name, payload.email, 
+        payload.phone_number, payload.company_name, payload.password
+    )
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update profile.")
     return {"message": "Profile updated successfully."}
 
 @app.post("/api/analysis/upload")
 async def upload_document(file: UploadFile = File(...)):
-    """Saves document temporarily, extracts text layer or runs OCR, and cleans results."""
     if not ocr_engine:
-        raise HTTPException(status_code=503, detail="OCR engine is not loaded yet.")
-
+        raise HTTPException(status_code=503, detail="OCR engine is not loaded.")
     temp_path = os.path.join(TEMP_DIR, file.filename)
     try:
         with open(temp_path, "wb") as buffer:
@@ -144,6 +188,9 @@ async def upload_document(file: UploadFile = File(...)):
         cleaned = clean_document_text(extracted_raw)
         return {"extracted_text": cleaned}
     except Exception as e:
+        import traceback
+        print("\n❌ CRITICAL ERROR IN /api/analysis/upload:")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Text extraction failed: {e}")
     finally:
         if os.path.exists(temp_path):
@@ -151,10 +198,9 @@ async def upload_document(file: UploadFile = File(...)):
 
 @app.post("/api/analysis/run")
 def run_audit(payload: AnalysisRequest):
-    """Processes requirements against standard rules, streaming results as they are computed."""
     global model, tokenizer, db
     if not all([model, tokenizer, db]):
-        raise HTTPException(status_code=503, detail="AI models or vectors are not initialized yet.")
+        raise HTTPException(status_code=503, detail="AI engine is not initialized.")
 
     sentences = re.split(r'(?<=[.!?]) +', payload.raw_text)
     keywords = ["shall", "should", "must", "needs to", "will", "required to"]
@@ -168,6 +214,8 @@ def run_audit(payload: AnalysisRequest):
         def empty_generator():
             yield json.dumps({"type": "empty", "message": "No compliance keywords found."}) + "\n"
         return StreamingResponse(empty_generator(), media_type="text/event-stream")
+
+    document_id = f"doc_{uuid.uuid4().hex[:8]}"
 
     def analysis_generator():
         total_reqs = len(reqs)
@@ -202,10 +250,11 @@ def run_audit(payload: AnalysisRequest):
                 final_analysis = parts[0].replace("### Analysis", "").strip()
                 final_rewrite = parts[1].strip()
 
-            # Save record to audit DB
-            log_audit_to_db(payload.username, current_req, f"{source_filename} | {clause_text}", res)
+            log_audit_to_db(
+                payload.username, current_req, f"{source_filename} | {clause_text}", 
+                res, document_id, payload.document_name
+            )
 
-            # Package result
             chunk_data = {
                 "type": "result",
                 "progress": {
@@ -220,10 +269,8 @@ def run_audit(payload: AnalysisRequest):
                     "suggested_rewrite": final_rewrite
                 }
             }
-            # Stream out as a newline-delimited JSON string
             yield json.dumps(chunk_data) + "\n"
 
-            # Memory clean up
             del inputs, outputs
             torch.cuda.empty_cache()
             gc.collect()
@@ -233,23 +280,85 @@ def run_audit(payload: AnalysisRequest):
 @app.get("/api/history/{username}")
 def get_user_history(username: str):
     df = fetch_user_history(username)
-    # Convert pandas dataframe into list of dictionaries
     return df.to_dict(orient="records")
 
-@app.get("/api/admin/logs")
-def get_logs():
-    df = fetch_unvalidated_logs()
-    return df.to_dict(orient="records")
+# =====================================================================
+# SYSTEM ADMINISTRATIVE CONSOLE ROUTING
+# =====================================================================
+
+@app.get("/api/admin/all-logs")
+def get_admin_audit_console():
+    return fetch_all_admin_logs()
 
 @app.post("/api/admin/logs/{log_id}/validate")
-def validate_log(log_id: int, payload: ValidationRequest):
-    update_log_status(log_id, validated_text=payload.validated_text, status=payload.status)
-    return {"message": f"Log {log_id} verified and exported."}
+def validate_log(log_id: int, payload: dict):
+    update_log_status(log_id, validated_text=payload.get("validated_text", ""), status="Validated")
+    return {"message": f"Log {log_id} validated."}
 
 @app.delete("/api/admin/logs/{log_id}")
 def purge_log(log_id: int):
     delete_log_entry(log_id)
-    return {"message": f"Log {log_id} deleted."}
+    return {"message": f"Log {log_id} discarded."}
+
+# =====================================================================
+# DOMAIN EXPERT CORE WORKFLOW ROUTING
+# =====================================================================
+
+@app.get("/api/expert/queue")
+def get_expert_queue_endpoint(expert_username: str):
+    return fetch_expert_queue(expert_username)
+
+@app.get("/api/expert/requirements/{document_id}")
+def get_document_requirements_endpoint(document_id: str):
+    return fetch_document_requirements(document_id)
+
+@app.post("/api/expert/lock")
+def lock_document_set_endpoint(payload: LockRequest):
+    success = lock_requirement_set(payload.document_id, payload.expert_username)
+    if not success:
+        raise HTTPException(status_code=409, detail="Document is already claimed by another Expert.")
+    return {"message": "Document set successfully locked."}
+
+@app.post("/api/expert/unlock")
+def unlock_document_set_endpoint(payload: UnlockRequest):
+    success = unlock_requirement_set(payload.document_id, payload.expert_username)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to release the document set lock.")
+    return {"message": "Document set successfully returned to the pending pool."}
+
+@app.post("/api/expert/submit")
+def submit_review_endpoint(payload: SubmitReviewRequest):
+    reviews_data = [r.dict() for r in payload.reviews]
+    success = submit_expert_review(payload.document_id, payload.expert_username, reviews_data, payload.is_approved)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to process review submission.")
+    return {"message": "Review processed successfully."}
+
+@app.get("/api/expert/history/{expert_username}")
+def get_expert_history_logs_endpoint(expert_username: str):
+    return fetch_expert_audited_logs(expert_username)
+
+# =====================================================================
+# USER NOTIFICATIONS & AUDITED COMPARATIVE VIEWS
+# =====================================================================
+
+@app.get("/api/notifications/{username}")
+def get_notifications_endpoint(username: str):
+    return fetch_user_notifications(username)
+
+@app.post("/api/notifications/{notification_id}/read")
+def read_notification_endpoint(notification_id: int):
+    mark_notification_as_read(notification_id)
+    return {"message": "Notification marked as read."}
+
+@app.delete("/api/notifications/{notification_id}")
+def remove_notification(notification_id: int):
+    delete_notification(notification_id)
+    return {"message": "Notification dismissed successfully."}
+
+@app.get("/api/notifications/{username}/compare/{document_id}")
+def get_audited_comparison_endpoint(username: str, document_id: str):
+    return fetch_document_comparison(document_id, username)
 
 if __name__ == "__main__":
     import uvicorn

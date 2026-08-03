@@ -1,45 +1,217 @@
-# 🛡️ SpecGuard: Sovereign Explainable AI Software Requirements Auditor
+# 🛡️ SpecGuard: Local AI Requirements Audit Platform
 
-**SpecGuard** is an automated, high-fidelity compliance assurance pipeline designed to audit software engineering requirements against international and national standards (including **ISO/IEC/IEEE 29148, ISO/IEC 25010, ISO 9001**, and local frameworks like **MyDIGITAL** and **Industry4WRD**).
+SpecGuard is a sovereign, local-first compliance auditing platform for software requirements documents. It combines OCR-based document ingestion, semantic rule retrieval, and a fine-tuned local LLM to analyze, audit, and improve requirements against standards such as:
 
-Built as a completely **sovereign, local-first AI system**, SpecGuard processes enterprise software specification sheets fully offline—ensuring total data privacy while eliminating reliance on expensive public cloud APIs.
+- ISO/IEC/IEEE 29148
+- ISO/IEC 25010
+- ISO 9001
+- Industry4WRD
+- MyDIGITAL
 
----
-
-## 🔄 System Architecture & Data Flow
-
-SpecGuard features a **Split-Responsibility Dual-Model Architecture** optimized to operate efficiently on consumer-grade hardware (tested on an 8GB VRAM GPU).
-
-1. **Phase 1: Ingestion & Parsing:** Extracts raw document layers using digital PDF vector tracking or falls back to CPU-bound optical character recognition layout parsing.
-2. **Phase 2: Deterministic Isolation:** Isolates commitment language strings via rule-based keyword matching to mitigate early model hallucination.
-3. **Phase 3: Model 1 Routing (CPU):** A localized vector space model maps sentences semantically to strict rule indexes inside a vector database.
-4. **Phase 4: Model 2 Generation (GPU):** A fine-tuned local quantized LLM interprets the combined requirement-rule context, outputting an explicit audit matrix breaking down violations and producing professional re-writes.
+The system is designed for offline operation with private data, using local SQLite storage and fine-tuned models on consumer hardware.
 
 ---
 
-## 🛠️ The Tech Stack
+## 🚀 What This Project Does
 
-- **Frontend UI Dashboard:** Streamlit
-- **LLM Acceleration Framework:** Unsloth (PEFT/LoRA 4-bit Quantization)
-- **Deep Learning Architecture Base:** PyTorch & Hugging Face Transformers
-- **RAG Orchestration & Embeddings:** LangChain Framework
-- **Vector Database Vector Space:** ChromaDB (`BAAI/bge-m3` multi-lingual mapping engine)
-- **Layout OCR Processing:** PaddleOCR (Forced on CPU)
-- **Shadow Log Storage Pool:** SQLite Database (Human-in-the-Loop Data Flywheel)
+- Accepts uploaded specification documents via a web UI
+- Extracts text from PDFs and images using OCR
+- Identifies requirement statements using compliance-related keywords
+- Retrieves related standard clauses from a local Chroma vector store
+- Generates natural-language analysis and rewrite suggestions using a fine-tuned local LLM
+- Logs audit results for user history, expert review, and admin validation
+- Supports three roles: `User`, `Expert`, and `Admin`
 
 ---
 
-## 📂 Repository Organization
+## 🧠 Architecture Overview
+
+### Backend
+
+Implemented in `app/` using FastAPI:
+
+- `app/main.py` — REST endpoints for auth, document upload, audit execution, expert workflows, notifications, and admin log management
+- `app/model_engine.py` — Loads the fine-tuned LoRA model, embedding model, EasyOCR reader, and Chroma retrieval store
+- `app/database.py` — SQLite schema initialization, auth management, audit logging, expert review flows, notification records, and dataset export support
+- `app/utils.py` — Text cleaning and PDF/image extraction helpers
+
+### Frontend
+
+Implemented in `frontend/` using React + Vite + Tailwind CSS:
+
+- `frontend/src/App.jsx` — Main application UI with login/register flow, upload and analysis workspace, history viewer, expert queue/editor, notifications, and admin console
+- `frontend/package.json` — Frontend dependencies and scripts
+
+### Models & Knowledge Base
+
+- `models/finetuned/sirim_specialist_lora/` — Local fine-tuned LoRA adapter weights and tokenizer
+- `data/knowledge_base/chroma_db/` — Persisted Chroma DB for semantic retrieval
+- `data/training/dataset.jsonl` — Training dataset collected from expert validation and synthetic generation
+
+---
+
+## 📦 Dependencies
+
+### Python backend
+
+Dependencies are declared in `requirements.txt`. Key packages include:
+
+- `fastapi`, `uvicorn`
+- `pydantic`, `python-multipart`
+- `easyocr`, `opencv-python`, `pdfplumber`, `python-docx`
+- `langchain-huggingface`, `langchain-chroma`, `langchain-community`
+- `sentence-transformers`, `chromadb`
+- `unsloth`, `trl`, `peft`, `accelerate`, `bitsandbytes`
+- `pandas`, `openpyxl`, `python-dotenv`
+- `werkzeug`
+
+### Frontend
+
+- `react`, `react-dom`
+- `vite`
+- `tailwindcss`
+- `eslint`
+
+---
+
+## 🛠️ Setup & Run
+
+### 1. Install Python dependencies
+
+From the repository root:
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Prepare the local workspace
+
+```bash
+python scripts/data_generator.py
+```
+
+### 3. Ingest the knowledge base
+
+Place compliance PDFs into `data/knowledge_base/` and run:
+
+```bash
+python scripts/ingest_rag.py
+```
+
+This generates the local Chroma DB at `data/knowledge_base/chroma_db`.
+
+### 4. Train or verify the model
+
+To fine-tune a local adapter:
+
+```bash
+python scripts/fine_tune_local.py
+```
+
+To verify the saved model adapter:
+
+```bash
+python scripts/test_model.py
+```
+
+### 5. Start the backend API
+
+```bash
+python app/main.py
+```
+
+Or with Uvicorn:
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### 6. Start the frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Then open the local Vite URL shown in the terminal.
+
+---
+
+## 🔧 User Workflows
+
+### Standard user
+
+1. Register or log in as a `User`
+2. Upload a PDF/image spec file for text extraction
+3. Run the compliance audit
+4. Review results and history
+
+### Domain expert
+
+1. Log in as an `Expert`
+2. Claim pending document sets from the expert queue
+3. Edit AI evaluations and rewrites
+4. Approve submissions to export verified dataset lines
+
+### Admin
+
+1. Log in as an `Admin`
+2. Review pending audit logs
+3. Validate or delete records
+4. Keep the training flywheel high quality
+
+---
+
+## 🗂️ File Structure
 
 ```text
+FYP/
 ├── app/
-│   ├── main.py          # UI Interface layout coordinator
-│   ├── model_engine.py  # Model initializers and execution routing
-│   ├── database.py      # SQLite data storage transactions
-│   └── utils.py         # Text cleaners and extraction parsers
+│   ├── database.py
+│   ├── main.py
+│   ├── model_engine.py
+│   └── utils.py
 ├── data/
-│   ├── training/        # Appended training records (dataset.jsonl)
-│   └── temp/            # Local scratch area for temporary uploads
-├── models/              # Destination directory for fine-tuned adapters
-├── scripts/             # Local fine-tuning and standalone ingestion scripts
-└── requirements.txt     # Complete environment dependencies layout
+│   ├── knowledge_base/
+│   │   └── chroma_db/
+│   ├── logs/
+│   ├── temp/
+│   └── training/
+│       └── dataset.jsonl
+├── frontend/
+│   ├── package.json
+│   ├── README.md
+│   └── src/
+│       └── App.jsx
+├── models/
+│   └── finetuned/
+│       └── sirim_specialist_lora/
+├── outputs/
+├── scripts/
+│   ├── data_generator.py
+│   ├── fine_tune_local.py
+│   ├── ingest_rag.py
+│   ├── setup_projects.py
+│   └── test_model.py
+├── storage/
+│   ├── auth.db
+│   └── training_pool.db
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## 💡 Notes
+
+- The backend expects the fine-tuned adapter at `models/finetuned/sirim_specialist_lora/`.
+- The vector store expects the Chroma database at `data/knowledge_base/chroma_db/`.
+- GPU memory optimizations are already applied via `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.
+- Core audit workflows are designed for local offline operation.
+
+---
+
+## 📄 License
+
+Add your license information here.
