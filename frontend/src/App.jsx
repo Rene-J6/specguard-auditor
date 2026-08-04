@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 const API_BASE = "http://localhost:8000/api";
 
@@ -36,7 +36,6 @@ export default function App() {
   // User Notification States
   const [notifications, setNotifications] = useState([]);
   const [activeComparison, setActiveComparison] = useState(null);
-  const [isComparing, setIsComparing] = useState(false);
 
   // Domain Expert States
   const [expertQueue, setExpertQueue] = useState([]);
@@ -50,18 +49,11 @@ export default function App() {
   const [expertHistoryReqs, setExpertHistoryReqs] = useState([]);
 
   // Comprehensive Admin Console State
-  const [adminLogsData, setAdminLogsData] = useState({ pending: [], approved: [] });
+  const [adminLogsData, setAdminLogsData] = useState({ pending: [], locked: [], approved: [], rejected: [] });
 
   // Profile Edit
   const [profileForm, setProfileForm] = useState({ fullName: "", email: "", phoneNumber: "", companyName: "", newPassword: "" });
   const [profileMsg, setProfileMsg] = useState({ type: "", text: "" });
-
-  useEffect(() => {
-    if (user) {
-      fetchProfileData();
-      refreshCoreData();
-    }
-  }, [user, activeTab]);
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -124,26 +116,34 @@ export default function App() {
     } catch (e) { console.error(e); }
   };
 
-  const handleAdminApprove = async (logId, modelOutput) => {
+  const handleAdminDelete = async (log) => {
+    const datasetWarning = log.lifecycle_status === "APPROVED"
+      ? " This will also remove its exported training record."
+      : "";
+    if (!confirm(`Delete requirement #${log.id}?${datasetWarning}`)) return;
     try {
-      const res = await fetch(`${API_BASE}/admin/logs/${logId}/validate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ validated_text: modelOutput })
-      });
+      const res = await fetch(`${API_BASE}/admin/logs/${log.id}`, { method: "DELETE" });
       if (res.ok) {
-        alert(`Log #${logId} successfully approved.`);
         fetchAdminAllLogs();
+      } else {
+        const error = await res.json();
+        alert(error.detail?.code || "Unable to delete this requirement.");
       }
     } catch (e) { console.error(e); }
   };
 
-  const handleAdminDelete = async (logId) => {
-    if (!confirm("Are you sure you want to completely discard this log?")) return;
+  const handleAdminDeleteDocument = async (log) => {
+    const datasetWarning = log.lifecycle_status === "APPROVED"
+      ? " All exported training records for this document will also be removed."
+      : "";
+    if (!confirm(`Delete the entire document '${log.document_name}'?${datasetWarning}`)) return;
     try {
-      const res = await fetch(`${API_BASE}/admin/logs/${logId}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/admin/documents/${log.document_id}`, { method: "DELETE" });
       if (res.ok) {
         fetchAdminAllLogs();
+      } else {
+        const error = await res.json();
+        alert(error.detail?.code || "Unable to delete this document.");
       }
     } catch (e) { console.error(e); }
   };
@@ -167,7 +167,7 @@ export default function App() {
       } else {
         setAuthError(data.detail || "Authentication failure.");
       }
-    } catch (err) { setAuthError("Cannot establish connection to server."); }
+    } catch { setAuthError("Cannot establish connection to server."); }
   };
 
   const handleRegister = async (e) => {
@@ -199,7 +199,7 @@ export default function App() {
       } else {
         setAuthError(data.detail || "Registration failed.");
       }
-    } catch (err) { setAuthError("Network connection timeout."); }
+    } catch { setAuthError("Network connection timeout."); }
   };
 
   const handleLogout = () => {
@@ -223,7 +223,7 @@ export default function App() {
       } else {
         alert(data.detail || "Extraction failed.");
       }
-    } catch (err) { alert("File upload exception."); }
+    } catch { alert("File upload exception."); }
     finally { setIsExtracting(false); }
   };
 
@@ -272,7 +272,7 @@ export default function App() {
         }
       }
       fetchHistory();
-    } catch (e) { alert("Network disconnect during batch execution."); }
+    } catch { alert("Network disconnect during batch execution."); }
     finally { setIsAnalyzing(false); }
   };
 
@@ -292,6 +292,13 @@ export default function App() {
   };
 
   const handleClaimDocument = async (documentId) => {
+    const activeDocument = expertQueue.find(
+      doc => doc.lifecycle_status === "LOCKED" && doc.assigned_expert === user.username
+    );
+    if (activeDocument && activeDocument.document_id !== documentId) {
+      alert(`Finish or release '${activeDocument.document_name}' before claiming another document.`);
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/expert/lock`, {
         method: "POST",
@@ -303,7 +310,12 @@ export default function App() {
         handleExpandDocument(documentId);
       } else {
         const err = await res.json();
-        alert(err.detail || "Claim failed. Likely locked by another expert.");
+        const detail = err.detail;
+        if (detail?.code === "ACTIVE_LOCK_EXISTS") {
+          alert(`Finish or release '${detail.document_name}' before claiming another document.`);
+        } else {
+          alert("This document is no longer available for review.");
+        }
       }
     } catch (e) { console.error(e); }
   };
@@ -333,7 +345,7 @@ export default function App() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/expert/requirements/${documentId}`);
+      const res = await fetch(`${API_BASE}/expert/requirements/${documentId}?expert_username=${encodeURIComponent(user.username)}`);
       if (res.ok) {
         const reqs = await res.json();
         setExpertActiveReqs(reqs);
@@ -361,7 +373,7 @@ export default function App() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/expert/requirements/${documentId}`);
+      const res = await fetch(`${API_BASE}/expert/requirements/${documentId}?expert_username=${encodeURIComponent(user.username)}`);
       if (res.ok) {
         setExpertHistoryReqs(await res.json());
         setExpandedExpertHistDocId(documentId);
@@ -398,7 +410,7 @@ export default function App() {
         })
       });
       if (res.ok) {
-        alert(isApproved ? "Human-verified dataset exported." : "Document set purged successfully.");
+        alert(isApproved ? "Human-verified dataset exported." : "Document rejected and retained for audit history.");
         setExpandedDocId(null);
         setExpertActiveReqs([]);
         fetchExpertQueueList();
@@ -411,7 +423,6 @@ export default function App() {
 
   // Comparative Notifications View
   const handleOpenComparison = async (notif) => {
-    setIsComparing(true);
     try {
       const res = await fetch(`${API_BASE}/notifications/${user.username}/compare/${notif.document_id}`);
       if (res.ok) {
@@ -427,7 +438,6 @@ export default function App() {
         fetchNotifications();
       }
     } catch (e) { console.error(e); }
-    finally { setIsComparing(false); }
   };
 
   const handleDeleteNotification = async (notificationId, e) => {
@@ -464,7 +474,7 @@ export default function App() {
       } else {
         setProfileMsg({ type: "error", text: "An error occurred while updating profile." });
       }
-    } catch (e) { setProfileMsg({ type: "error", text: "Connection error." }); }
+    } catch { setProfileMsg({ type: "error", text: "Connection error." }); }
   };
 
   // Helper grouping functions for User History Drill-downs
@@ -496,6 +506,17 @@ export default function App() {
     }
     return { analysis, rewrite };
   };
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (user) {
+      fetchProfileData();
+      refreshCoreData();
+    }
+    // These request helpers intentionally refresh whenever the active role tab changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, activeTab]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col font-sans">
@@ -1105,8 +1126,11 @@ export default function App() {
                       <div className="space-y-3">
                         {expertQueue.map((doc) => {
                           const isExpanded = expandedDocId === doc.document_id;
-                          const isClaimedByMe = doc.assigned_expert === user.username && doc.review_status === "Locked";
-                          const isLockedByOther = doc.review_status === "Locked" && doc.assigned_expert !== user.username;
+                          const isClaimedByMe = doc.assigned_expert === user.username && doc.lifecycle_status === "LOCKED";
+                          const activeDocument = expertQueue.find(
+                            item => item.lifecycle_status === "LOCKED" && item.assigned_expert === user.username
+                          );
+                          const hasOtherActiveDocument = activeDocument && activeDocument.document_id !== doc.document_id;
 
                           return (
                             <div key={doc.document_id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden animate-fade-in">
@@ -1114,16 +1138,21 @@ export default function App() {
                                 <div onClick={() => isClaimedByMe && handleExpandDocument(doc.document_id)} className="flex-grow cursor-pointer">
                                   <h4 className="font-bold text-gray-900 text-sm flex items-center space-x-2">
                                     <span>📄 {doc.document_name}</span>
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${doc.review_status === "Locked" ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}>
-                                      {doc.review_status === "Locked" ? `Locked by ${doc.assigned_expert}` : "Available"}
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${doc.lifecycle_status === "LOCKED" ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}>
+                                      {doc.lifecycle_status === "LOCKED" ? "Your active review" : "Available"}
                                     </span>
                                   </h4>
                                   <p className="text-xs text-gray-500 mt-1">Submitter: {doc.submitter} | Last Modified: {doc.timestamp}</p>
                                 </div>
                                 <div className="flex space-x-2 shrink-0">
-                                  {!isClaimedByMe && !isLockedByOther && (
-                                    <button onClick={() => handleClaimDocument(doc.document_id)} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition">
-                                      🔑 Lock & Audit
+                                  {!isClaimedByMe && (
+                                    <button
+                                      onClick={() => handleClaimDocument(doc.document_id)}
+                                      disabled={hasOtherActiveDocument}
+                                      title={hasOtherActiveDocument ? `Finish or release ${activeDocument.document_name} first` : "Claim this document"}
+                                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold px-4 py-2 rounded-lg transition"
+                                    >
+                                      {hasOtherActiveDocument ? "Complete Active Review First" : "Lock & Audit"}
                                     </button>
                                   )}
                                   {isClaimedByMe && (
@@ -1179,7 +1208,7 @@ export default function App() {
 
                                   <div className="flex space-x-3 justify-end pt-3 border-t border-gray-100">
                                     <button onClick={() => handleSubmitExpertAudit(doc.document_id, false)} className="px-5 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded-lg transition">
-                                      🗑️ Reject & Delete Log
+                                      Reject Document
                                     </button>
                                     <button onClick={() => handleSubmitExpertAudit(doc.document_id, true)} className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition shadow-sm">
                                       ✅ Approve & Export to Flywheel
@@ -1285,70 +1314,53 @@ export default function App() {
                 </div>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Left Column: Pending User Submissions */}
-                  <div className="space-y-4">
-                    <h4 className="font-bold text-sm text-yellow-800 bg-yellow-50 px-4 py-2.5 rounded-lg border border-yellow-100">📥 Pending User Submissions ({adminLogsData.pending?.length || 0})</h4>
-                    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                      {adminLogsData.pending?.map((log) => {
-                        return (
+                  {[
+                    { key: "pending", label: "Pending", headerClass: "text-blue-800 bg-blue-50 border-blue-100" },
+                    { key: "locked", label: "Locked", headerClass: "text-yellow-800 bg-yellow-50 border-yellow-100" },
+                    { key: "approved", label: "Approved", headerClass: "text-green-800 bg-green-50 border-green-100" },
+                    { key: "rejected", label: "Rejected", headerClass: "text-red-800 bg-red-50 border-red-100" }
+                  ].map((section) => (
+                    <div key={section.key} className="space-y-4">
+                      <h4 className={`font-bold text-sm px-4 py-2.5 rounded-lg border ${section.headerClass}`}>
+                        {section.label} Records ({adminLogsData[section.key]?.length || 0})
+                      </h4>
+                      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                        {adminLogsData[section.key]?.map((log) => (
                           <div key={log.id} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm animate-fade-in">
-                            <div className="text-[10px] font-bold text-gray-400">ID #{log.id} | User: {log.username} | {log.timestamp}</div>
+                            <div className="text-[10px] font-bold text-gray-400">
+                              ID #{log.id} | User: {log.username} | Expert: {log.assigned_expert || "—"} | Export: {log.export_status}
+                            </div>
+                            <div className="text-[10px] text-gray-400">Document: {log.document_name} | {log.timestamp}</div>
                             <div>
-                              <span className="text-[10px] font-extrabold text-gray-500 uppercase block">User Submission:</span>
+                              <span className="text-[10px] font-extrabold text-gray-500 uppercase block">Requirement</span>
                               <p className="text-xs font-semibold text-gray-800">{log.requirement}</p>
                             </div>
                             <div>
-                              <span className="text-[10px] font-extrabold text-gray-500 uppercase block">Matched Standard Rule:</span>
-                              <p className="text-xs italic text-gray-600">{log.matched_rule}</p>
+                              <span className="text-[10px] font-extrabold text-gray-500 uppercase block">Matched Standard Rule</span>
+                              <p className="text-xs italic text-gray-600 line-clamp-3">{log.matched_rule}</p>
                             </div>
-                            <div className="flex space-x-2 pt-2">
-                              <button onClick={() => handleAdminApprove(log.id, log.model_output)} className="bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition">Approve</button>
-                              <button onClick={() => handleAdminDelete(log.id)} className="bg-red-50 hover:bg-red-100 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg transition">Discard</button>
+                            {section.key === "approved" && (
+                              <div className="bg-green-50 p-2.5 rounded border border-green-100">
+                                <p className="text-[11px] text-green-950">{log.expert_evaluation}</p>
+                                <p className="text-[11px] font-bold text-green-900 mt-2">{log.expert_rewrite}</p>
+                              </div>
+                            )}
+                            <div className="flex flex-wrap gap-2 pt-2">
+                              <button onClick={() => handleAdminDelete(log)} className="bg-red-50 hover:bg-red-100 text-red-700 text-[10px] font-bold px-3 py-1.5 rounded-lg transition">
+                                Delete Requirement
+                              </button>
+                              <button onClick={() => handleAdminDeleteDocument(log)} className="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition">
+                                Delete Document
+                              </button>
                             </div>
                           </div>
-                        );
-                      })}
-                      {adminLogsData.pending?.length === 0 && (
-                        <p className="text-center text-xs text-gray-400 py-12 border border-dashed border-gray-200 rounded-lg bg-white">No pending user logs.</p>
-                      )}
+                        ))}
+                        {adminLogsData[section.key]?.length === 0 && (
+                          <p className="text-center text-xs text-gray-400 py-10 border border-dashed border-gray-200 rounded-lg bg-white">No {section.label.toLowerCase()} records.</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Right Column: Approved Expert Audits */}
-                  <div className="space-y-4">
-                    <h4 className="font-bold text-sm text-green-800 bg-green-50 px-4 py-2.5 rounded-lg border border-green-100">👑 Expert Approved Audits ({adminLogsData.approved?.length || 0})</h4>
-                    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                      {adminLogsData.approved?.map((log) => {
-                        const parsed = parseModelOutput(log.model_output);
-                        return (
-                          <div key={log.id} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm animate-fade-in">
-                            <div className="text-[10px] font-bold text-gray-400">ID #{log.id} | Submitter: {log.username} | Auditor: {log.assigned_expert} | Doc: {log.document_name}</div>
-                            <div className="bg-gray-50 p-2.5 rounded">
-                              <span className="text-[10px] font-extrabold text-indigo-800 uppercase block">Target Sentence:</span>
-                              <p className="text-xs font-semibold text-gray-800">{log.requirement}</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3 pt-1">
-                              <div className="bg-red-50/10 p-2.5 rounded border border-red-50 space-y-1">
-                                <span className="text-[9px] font-extrabold text-red-800 uppercase block">AI Analysis:</span>
-                                <p className="text-[11px] text-gray-600 truncate">{parsed.analysis}</p>
-                                <span className="text-[9px] font-extrabold text-red-800 uppercase block mt-1">AI Rewrite:</span>
-                                <p className="text-[11px] font-medium text-gray-600 truncate">{parsed.rewrite}</p>
-                              </div>
-                              <div className="bg-green-50/50 p-2.5 rounded border border-green-100 space-y-1">
-                                <span className="text-[9px] font-extrabold text-green-800 uppercase block">Expert Corrected:</span>
-                                <p className="text-[11px] font-medium text-green-950 truncate">{log.expert_evaluation}</p>
-                                <span className="text-[9px] font-extrabold text-green-800 uppercase block mt-1">Expert Rewrite:</span>
-                                <p className="text-[11px] font-bold text-green-900 truncate">{log.expert_rewrite}</p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {adminLogsData.approved?.length === 0 && (
-                        <p className="text-center text-xs text-gray-400 py-12 border border-dashed border-gray-200 rounded-lg bg-white">No approved expert audits logged.</p>
-                      )}
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1363,7 +1375,7 @@ export default function App() {
 
 // Scannable formatter helper
 function formatScannableClause(raw, limit = 150) {
-  let clean = raw.trim().replace(/^[a-z\s,.\-\)]+/, '');
+  let clean = raw.trim().replace(/^[a-z\s,.)-]+/, '');
   if (clean && clean[0] === clean[0].toLowerCase()) {
     clean = clean[0].toUpperCase() + clean.slice(1);
   }

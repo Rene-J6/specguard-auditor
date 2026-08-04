@@ -39,19 +39,34 @@ TEMP_DIR = os.path.join(PROJECT_ROOT, "data", "temp")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 # Custom module imports
-from database import (
-    init_sqlite_pool, log_audit_to_db, fetch_unvalidated_logs, 
-    update_log_status, delete_log_entry, init_auth_db, 
-    register_user, verify_login, fetch_user_history,
-    get_user_details, update_user_profile,
-    fetch_expert_queue, fetch_document_requirements,
-    lock_requirement_set, unlock_requirement_set, submit_expert_review,
-    fetch_user_notifications, mark_notification_as_read, delete_notification,
-    fetch_document_comparison, fetch_expert_audited_logs,
-    fetch_all_admin_logs
-)
-from utils import clean_document_text, extract_text_from_file
-from model_engine import load_pipeline_resources
+if __package__ in {None, ""}:
+    from database import (
+        init_sqlite_pool, log_audit_to_db, fetch_unvalidated_logs, 
+        delete_log_entry, delete_document_entry, init_auth_db,
+        register_user, verify_login, fetch_user_history,
+        get_user_details, update_user_profile,
+        fetch_expert_queue, fetch_document_requirements,
+        lock_requirement_set, unlock_requirement_set, submit_expert_review,
+        fetch_user_notifications, mark_notification_as_read, delete_notification,
+        fetch_document_comparison, fetch_expert_audited_logs,
+        fetch_all_admin_logs
+    )
+    from utils import clean_document_text, extract_text_from_file
+    from model_engine import load_pipeline_resources
+else:
+    from .database import (
+        init_sqlite_pool, log_audit_to_db, fetch_unvalidated_logs, 
+        delete_log_entry, delete_document_entry, init_auth_db,
+        register_user, verify_login, fetch_user_history,
+        get_user_details, update_user_profile,
+        fetch_expert_queue, fetch_document_requirements,
+        lock_requirement_set, unlock_requirement_set, submit_expert_review,
+        fetch_user_notifications, mark_notification_as_read, delete_notification,
+        fetch_document_comparison, fetch_expert_audited_logs,
+        fetch_all_admin_logs
+    )
+    from .utils import clean_document_text, extract_text_from_file
+    from .model_engine import load_pipeline_resources
 
 # Initialize databases
 init_sqlite_pool()
@@ -81,6 +96,7 @@ def startup_event():
         print("SpecGuard Core Engine components loaded successfully.")
     except Exception as e:
         print(f"Error initializing core engine components: {e}")
+        model = tokenizer = ocr_engine = db = None
 
 # =====================================================================
 # REQUEST & RESPONSE SCHEMAS
@@ -292,13 +308,26 @@ def get_admin_audit_console():
 
 @app.post("/api/admin/logs/{log_id}/validate")
 def validate_log(log_id: int, payload: dict):
-    update_log_status(log_id, validated_text=payload.get("validated_text", ""), status="Validated")
-    return {"message": f"Log {log_id} validated."}
+    raise HTTPException(
+        status_code=410,
+        detail="Admin validation has been removed. Expert approval is final.",
+    )
 
 @app.delete("/api/admin/logs/{log_id}")
 def purge_log(log_id: int):
-    delete_log_entry(log_id)
+    result = delete_log_entry(log_id)
+    if not result["success"]:
+        status_code = 404 if result.get("code") == "NOT_FOUND" else 409
+        raise HTTPException(status_code=status_code, detail=result)
     return {"message": f"Log {log_id} discarded."}
+
+@app.delete("/api/admin/documents/{document_id}")
+def purge_document(document_id: str):
+    result = delete_document_entry(document_id)
+    if not result["success"]:
+        status_code = 404 if result.get("code") == "NOT_FOUND" else 409
+        raise HTTPException(status_code=status_code, detail=result)
+    return {"message": f"Document {document_id} discarded.", "deleted": result["deleted"]}
 
 # =====================================================================
 # DOMAIN EXPERT CORE WORKFLOW ROUTING
@@ -309,30 +338,42 @@ def get_expert_queue_endpoint(expert_username: str):
     return fetch_expert_queue(expert_username)
 
 @app.get("/api/expert/requirements/{document_id}")
-def get_document_requirements_endpoint(document_id: str):
-    return fetch_document_requirements(document_id)
+def get_document_requirements_endpoint(document_id: str, expert_username: str):
+    result = fetch_document_requirements(document_id, expert_username)
+    if not result["success"]:
+        status_code = 404 if result["code"] == "NOT_FOUND" else 403
+        raise HTTPException(status_code=status_code, detail=result["code"])
+    return result["requirements"]
 
 @app.post("/api/expert/lock")
 def lock_document_set_endpoint(payload: LockRequest):
-    success = lock_requirement_set(payload.document_id, payload.expert_username)
-    if not success:
-        raise HTTPException(status_code=409, detail="Document is already claimed by another Expert.")
-    return {"message": "Document set successfully locked."}
+    result = lock_requirement_set(payload.document_id, payload.expert_username)
+    if not result["success"]:
+        raise HTTPException(status_code=409, detail=result)
+    return {"message": "Document set successfully locked.", **result}
 
 @app.post("/api/expert/unlock")
 def unlock_document_set_endpoint(payload: UnlockRequest):
-    success = unlock_requirement_set(payload.document_id, payload.expert_username)
-    if not success:
+    result = unlock_requirement_set(payload.document_id, payload.expert_username)
+    if not result["success"]:
         raise HTTPException(status_code=400, detail="Failed to release the document set lock.")
     return {"message": "Document set successfully returned to the pending pool."}
 
 @app.post("/api/expert/submit")
 def submit_review_endpoint(payload: SubmitReviewRequest):
-    reviews_data = [r.dict() for r in payload.reviews]
-    success = submit_expert_review(payload.document_id, payload.expert_username, reviews_data, payload.is_approved)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to process review submission.")
-    return {"message": "Review processed successfully."}
+    reviews_data = [r.model_dump() for r in payload.reviews]
+    result = submit_expert_review(
+        payload.document_id,
+        payload.expert_username,
+        reviews_data,
+        payload.is_approved,
+    )
+    if not result["success"]:
+        status_code = 409 if result.get("code") in {
+            "NOT_LOCK_OWNER", "REVIEW_SET_MISMATCH"
+        } else 500
+        raise HTTPException(status_code=status_code, detail=result)
+    return {"message": "Review processed successfully.", **result}
 
 @app.get("/api/expert/history/{expert_username}")
 def get_expert_history_logs_endpoint(expert_username: str):

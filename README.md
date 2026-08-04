@@ -19,7 +19,7 @@ The system is designed for offline operation with private data, using local SQLi
 - Identifies requirement statements using compliance-related keywords
 - Retrieves related standard clauses from a local Chroma vector store
 - Generates natural-language analysis and rewrite suggestions using a fine-tuned local LLM
-- Logs audit results for user history, expert review, and admin validation
+- Logs audit results for user history, expert review, and admin lifecycle management
 - Supports three roles: `User`, `Expert`, and `Admin`
 
 ---
@@ -150,16 +150,20 @@ Then open the local Vite URL shown in the terminal.
 ### Domain expert
 
 1. Log in as an `Expert`
-2. Claim pending document sets from the expert queue
+2. Claim one pending document set from the expert queue
 3. Edit AI evaluations and rewrites
-4. Approve submissions to export verified dataset lines
+4. Approve submissions to export verified four-field dataset lines, reject them while retaining an audit record, or release the active document
+
+An expert can hold only one active document lock. Documents locked by another expert are not available for review.
 
 ### Admin
 
 1. Log in as an `Admin`
-2. Review pending audit logs
-3. Validate or delete records
-4. Keep the training flywheel high quality
+2. Monitor records grouped as `PENDING`, `LOCKED`, `APPROVED`, or `REJECTED`
+3. Delete individual requirements or complete documents
+4. When deleting approved data, remove its corresponding exported training record
+
+Admins do not approve requirement content; expert approval is final. Internal lifecycle and export states are not exposed in standard user history.
 
 ---
 
