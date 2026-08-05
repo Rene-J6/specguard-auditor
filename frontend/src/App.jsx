@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react';
 const API_BASE = "http://localhost:8000/api";
 
 export default function App() {
-  // Session & UI Navigation State (Resets to Welcome on every relaunch)
+  // Session & UI Navigation State
   const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState("Welcome");
   const [activeTab, setActiveTab] = useState("portal"); 
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -15,7 +16,7 @@ export default function App() {
 
   // Authentication States
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
-  const [registerForm, setRegisterForm] = useState({ username: "", password: "", fullName: "", email: "", role: "User", phone_number: "", company_name: "", confirmPassword: "" });
+  const [registerForm, setRegisterForm] = useState({ username: "", password: "", fullName: "", email: "", phone_number: "", company_name: "", confirmPassword: "" });
   const [authError, setAuthError] = useState("");
   const [authSuccess, setAuthSuccess] = useState("");
 
@@ -50,10 +51,47 @@ export default function App() {
 
   // Comprehensive Admin Console State
   const [adminLogsData, setAdminLogsData] = useState({ pending: [], locked: [], approved: [], rejected: [] });
+  const [adminView, setAdminView] = useState("audits");
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminSearch, setAdminSearch] = useState("");
+  const [adminRoleFilter, setAdminRoleFilter] = useState("All");
+  const [adminStatusFilter, setAdminStatusFilter] = useState("All");
+  const [adminUserModal, setAdminUserModal] = useState(null);
+  const [adminUserForm, setAdminUserForm] = useState({ username: "", password: "", full_name: "", email: "", phone_number: "", company_name: "", role: "User", is_active: true });
+  const [adminUserError, setAdminUserError] = useState("");
 
   // Profile Edit
-  const [profileForm, setProfileForm] = useState({ fullName: "", email: "", phoneNumber: "", companyName: "", newPassword: "" });
+  const [profileForm, setProfileForm] = useState({ fullName: "", email: "", phoneNumber: "", companyName: "" });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "" });
   const [profileMsg, setProfileMsg] = useState({ type: "", text: "" });
+
+  const apiFetch = async (url, options = {}) => {
+    const response = await window.fetch(url, { credentials: "include", ...options });
+    if (response.status === 401 && !url.endsWith("/auth/login")) {
+      setUser(null);
+      setCurrentPage("Welcome");
+    }
+    return response;
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    const restoreSession = async () => {
+      try {
+        const response = await window.fetch(`${API_BASE}/auth/me`, { credentials: "include" });
+        if (response.ok && mounted) {
+          setUser(await response.json());
+          setCurrentPage("Dashboard");
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (mounted) setAuthLoading(false);
+      }
+    };
+    restoreSession();
+    return () => { mounted = false; };
+  }, []);
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -75,20 +113,20 @@ export default function App() {
       fetchExpertHistoryList();
     } else if (user.role === "Admin") {
       fetchAdminAllLogs();
+      fetchAdminUsers();
     }
   };
 
   const fetchProfileData = async () => {
     try {
-      const res = await fetch(`${API_BASE}/profile/${user.username}`);
+      const res = await apiFetch(`${API_BASE}/profile`);
       if (res.ok) {
         const data = await res.json();
         setProfileForm({
           fullName: data.full_name,
           email: data.email,
           phoneNumber: data.phone_number || "",
-          companyName: data.company_name || "",
-          newPassword: ""
+          companyName: data.company_name || ""
         });
       }
     } catch (e) { console.error(e); }
@@ -97,21 +135,21 @@ export default function App() {
   // Base API Implementations
   const fetchHistory = async () => {
     try {
-      const res = await fetch(`${API_BASE}/history/${user.username}`);
+      const res = await apiFetch(`${API_BASE}/history`);
       if (res.ok) setHistoryList(await res.json());
     } catch (e) { console.error(e); }
   };
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch(`${API_BASE}/notifications/${user.username}`);
+      const res = await apiFetch(`${API_BASE}/notifications`);
       if (res.ok) setNotifications(await res.json());
     } catch (e) { console.error(e); }
   };
 
   const fetchAdminAllLogs = async () => {
     try {
-      const res = await fetch(`${API_BASE}/admin/all-logs`);
+      const res = await apiFetch(`${API_BASE}/admin/all-logs`);
       if (res.ok) setAdminLogsData(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -122,7 +160,7 @@ export default function App() {
       : "";
     if (!confirm(`Delete requirement #${log.id}?${datasetWarning}`)) return;
     try {
-      const res = await fetch(`${API_BASE}/admin/logs/${log.id}`, { method: "DELETE" });
+      const res = await apiFetch(`${API_BASE}/admin/logs/${log.id}`, { method: "DELETE" });
       if (res.ok) {
         fetchAdminAllLogs();
       } else {
@@ -132,13 +170,99 @@ export default function App() {
     } catch (e) { console.error(e); }
   };
 
+  const fetchAdminUsers = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/admin/users`);
+      if (res.ok) setAdminUsers(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const openCreateUser = () => {
+    setAdminUserForm({ username: "", password: "", full_name: "", email: "", phone_number: "", company_name: "", role: "User", is_active: true });
+    setAdminUserError("");
+    setAdminUserModal("create");
+  };
+
+  const openEditUser = (managedUser) => {
+    setAdminUserForm({
+      username: managedUser.username,
+      password: "",
+      full_name: managedUser.full_name,
+      email: managedUser.email,
+      phone_number: managedUser.phone_number || "",
+      company_name: managedUser.company_name || "",
+      role: managedUser.role,
+      is_active: managedUser.is_active
+    });
+    setAdminUserError("");
+    setAdminUserModal(managedUser);
+  };
+
+  const handleSaveManagedUser = async (event) => {
+    event.preventDefault();
+    setAdminUserError("");
+    const creating = adminUserModal === "create";
+    const url = creating ? `${API_BASE}/admin/users` : `${API_BASE}/admin/users/${adminUserModal.id}`;
+    const payload = {
+      full_name: adminUserForm.full_name,
+      email: adminUserForm.email,
+      phone_number: adminUserForm.phone_number,
+      company_name: adminUserForm.company_name,
+      role: adminUserForm.role
+    };
+    if (creating) {
+      payload.username = adminUserForm.username;
+      payload.password = adminUserForm.password;
+    }
+    try {
+      const res = await apiFetch(url, {
+        method: creating ? "POST" : "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const editedSelfRole = !creating && adminUserModal.id === user.id && adminUserForm.role !== user.role;
+        setAdminUserModal(null);
+        await fetchAdminUsers();
+        if (editedSelfRole) {
+          setUser(null);
+          setCurrentPage("Welcome");
+        }
+      } else {
+        const error = await res.json();
+        setAdminUserError(error.detail?.code || error.detail || "Unable to save this account.");
+      }
+    } catch {
+      setAdminUserError("Connection error.");
+    }
+  };
+
+  const handleToggleManagedUser = async (managedUser) => {
+    if (!confirm(`${managedUser.is_active ? "Disable" : "Enable"} '${managedUser.username}'?`)) return;
+    try {
+      const res = await apiFetch(`${API_BASE}/admin/users/${managedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: !managedUser.is_active })
+      });
+      if (res.ok) {
+        fetchAdminUsers();
+      } else {
+        const error = await res.json();
+        alert(error.detail?.code || "Unable to change account status.");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const handleAdminDeleteDocument = async (log) => {
     const datasetWarning = log.lifecycle_status === "APPROVED"
       ? " All exported training records for this document will also be removed."
       : "";
     if (!confirm(`Delete the entire document '${log.document_name}'?${datasetWarning}`)) return;
     try {
-      const res = await fetch(`${API_BASE}/admin/documents/${log.document_id}`, { method: "DELETE" });
+      const res = await apiFetch(`${API_BASE}/admin/documents/${log.document_id}`, { method: "DELETE" });
       if (res.ok) {
         fetchAdminAllLogs();
       } else {
@@ -153,7 +277,7 @@ export default function App() {
     e.preventDefault();
     setAuthError("");
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const res = await apiFetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginForm)
@@ -179,7 +303,7 @@ export default function App() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
+      const res = await apiFetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -187,7 +311,6 @@ export default function App() {
           password: registerForm.password,
           full_name: registerForm.fullName,
           email: registerForm.email,
-          role: registerForm.role,
           phone_number: registerForm.phone_number,
           company_name: registerForm.company_name
         })
@@ -202,7 +325,12 @@ export default function App() {
     } catch { setAuthError("Network connection timeout."); }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await apiFetch(`${API_BASE}/auth/logout`, { method: "POST" });
+    } catch (error) {
+      console.error(error);
+    }
     setUser(null);
     setCurrentPage("Welcome");
   };
@@ -214,7 +342,7 @@ export default function App() {
     const formData = new FormData();
     formData.append("file", selectedFile);
     try {
-      const res = await fetch(`${API_BASE}/analysis/upload`, { method: "POST", body: formData });
+      const res = await apiFetch(`${API_BASE}/analysis/upload`, { method: "POST", body: formData });
       const data = await res.json();
       if (res.ok) {
         setExtractedText(data.extracted_text);
@@ -234,10 +362,10 @@ export default function App() {
     setAnalysisProgress({ current: 0, total: 0 });
 
     try {
-      const response = await fetch(`${API_BASE}/analysis/run`, {
+      const response = await apiFetch(`${API_BASE}/analysis/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: user.username, raw_text: extractedText, document_name: documentName })
+        body: JSON.stringify({ raw_text: extractedText, document_name: documentName })
       });
 
       if (!response.ok) {
@@ -279,14 +407,14 @@ export default function App() {
   // Domain Expert Core logic
   const fetchExpertQueueList = async () => {
     try {
-      const res = await fetch(`${API_BASE}/expert/queue?expert_username=${user.username}`);
+      const res = await apiFetch(`${API_BASE}/expert/queue`);
       if (res.ok) setExpertQueue(await res.json());
     } catch (e) { console.error(e); }
   };
 
   const fetchExpertHistoryList = async () => {
     try {
-      const res = await fetch(`${API_BASE}/expert/history/${user.username}`);
+      const res = await apiFetch(`${API_BASE}/expert/history`);
       if (res.ok) setExpertHistory(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -300,10 +428,10 @@ export default function App() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/expert/lock`, {
+      const res = await apiFetch(`${API_BASE}/expert/lock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ document_id: documentId, expert_username: user.username })
+        body: JSON.stringify({ document_id: documentId })
       });
       if (res.ok) {
         fetchExpertQueueList();
@@ -323,10 +451,10 @@ export default function App() {
   const handleUnlockDocument = async (documentId) => {
     if (!confirm("Return this document set back to the pending queue for other experts?")) return;
     try {
-      const res = await fetch(`${API_BASE}/expert/unlock`, {
+      const res = await apiFetch(`${API_BASE}/expert/unlock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ document_id: documentId, expert_username: user.username })
+        body: JSON.stringify({ document_id: documentId })
       });
       if (res.ok) {
         setExpandedDocId(null);
@@ -345,7 +473,7 @@ export default function App() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/expert/requirements/${documentId}?expert_username=${encodeURIComponent(user.username)}`);
+      const res = await apiFetch(`${API_BASE}/expert/requirements/${documentId}`);
       if (res.ok) {
         const reqs = await res.json();
         setExpertActiveReqs(reqs);
@@ -373,7 +501,7 @@ export default function App() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/expert/requirements/${documentId}?expert_username=${encodeURIComponent(user.username)}`);
+      const res = await apiFetch(`${API_BASE}/expert/requirements/${documentId}`);
       if (res.ok) {
         setExpertHistoryReqs(await res.json());
         setExpandedExpertHistDocId(documentId);
@@ -399,12 +527,11 @@ export default function App() {
     }));
 
     try {
-      const res = await fetch(`${API_BASE}/expert/submit`, {
+      const res = await apiFetch(`${API_BASE}/expert/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           document_id: documentId,
-          expert_username: user.username,
           reviews: reviewsPayload,
           is_approved: isApproved
         })
@@ -424,7 +551,7 @@ export default function App() {
   // Comparative Notifications View
   const handleOpenComparison = async (notif) => {
     try {
-      const res = await fetch(`${API_BASE}/notifications/${user.username}/compare/${notif.document_id}`);
+      const res = await apiFetch(`${API_BASE}/notifications/${notif.id}/comparison`);
       if (res.ok) {
         const data = await res.json();
         setActiveComparison({
@@ -434,7 +561,7 @@ export default function App() {
         });
         
         // Mark notification as read
-        await fetch(`${API_BASE}/notifications/${notif.id}/read`, { method: "POST" });
+        await apiFetch(`${API_BASE}/notifications/${notif.id}/read`, { method: "POST" });
         fetchNotifications();
       }
     } catch (e) { console.error(e); }
@@ -443,11 +570,35 @@ export default function App() {
   const handleDeleteNotification = async (notificationId, e) => {
     e.stopPropagation(); // Stop click from triggering 'handleOpenComparison' modal
     try {
-      const res = await fetch(`${API_BASE}/notifications/${notificationId}`, { method: "DELETE" });
+      const res = await apiFetch(`${API_BASE}/notifications/${notificationId}`, { method: "DELETE" });
       if (res.ok) {
         setNotifications((prev) => prev.filter(n => n.id !== notificationId));
       }
     } catch (err) { console.error(err); }
+  };
+
+  const handleExportReport = async (documentId, documentName, event) => {
+    event.stopPropagation();
+    try {
+      const res = await apiFetch(`${API_BASE}/reports/documents/${documentId}/docx`);
+      if (!res.ok) {
+        alert("Unable to export this audit report.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeName = documentName.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "document";
+      link.href = url;
+      link.download = `${safeName}_audit_report.docx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      alert("Unable to export this audit report.");
+    }
   };
 
   // Profile Edit Form Submit
@@ -455,16 +606,14 @@ export default function App() {
     e.preventDefault();
     setProfileMsg({ type: "", text: "" });
     try {
-      const res = await fetch(`${API_BASE}/profile`, {
+      const res = await apiFetch(`${API_BASE}/profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: user.username,
           full_name: profileForm.fullName,
           email: profileForm.email,
           phone_number: profileForm.phoneNumber,
-          company_name: profileForm.companyName,
-          password: profileForm.newPassword
+          company_name: profileForm.companyName
         })
       });
       if (res.ok) {
@@ -475,6 +624,32 @@ export default function App() {
         setProfileMsg({ type: "error", text: "An error occurred while updating profile." });
       }
     } catch { setProfileMsg({ type: "error", text: "Connection error." }); }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setProfileMsg({ type: "", text: "" });
+    try {
+      const res = await apiFetch(`${API_BASE}/auth/change-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_password: passwordForm.currentPassword,
+          new_password: passwordForm.newPassword
+        })
+      });
+      if (res.ok) {
+        setPasswordForm({ currentPassword: "", newPassword: "" });
+        setUser(null);
+        setCurrentPage("Welcome");
+        setAuthModal("Login");
+        setAuthSuccess("Password changed. Please log in again.");
+      } else {
+        setProfileMsg({ type: "error", text: "Current password is incorrect or the new password is invalid." });
+      }
+    } catch {
+      setProfileMsg({ type: "error", text: "Connection error." });
+    }
   };
 
   // Helper grouping functions for User History Drill-downs
@@ -517,6 +692,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, activeTab]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  const filteredAdminUsers = adminUsers.filter((managedUser) => {
+    const query = adminSearch.trim().toLowerCase();
+    const searchable = [managedUser.username, managedUser.full_name, managedUser.email, managedUser.company_name]
+      .join(" ")
+      .toLowerCase();
+    const matchesSearch = !query || searchable.includes(query);
+    const matchesRole = adminRoleFilter === "All" || managedUser.role === adminRoleFilter;
+    const matchesStatus = adminStatusFilter === "All"
+      || (adminStatusFilter === "Active" ? managedUser.is_active : !managedUser.is_active);
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  if (authLoading) {
+    return <main className="min-h-screen bg-gray-50 flex items-center justify-center text-sm font-semibold text-gray-500">Restoring secure session...</main>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col font-sans">
@@ -714,12 +905,8 @@ export default function App() {
                     <label className="block text-xs font-bold text-gray-700 mb-1">Username *</label>
                     <input type="text" required value={registerForm.username} onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Role Type *</label>
-                    <select value={registerForm.role} onChange={(e) => setRegisterForm({ ...registerForm, role: e.target.value })} className="w-full border border-gray-300 bg-white rounded-lg px-3 py-2 text-sm">
-                      <option value="User">Standard User</option>
-                      <option value="Expert">Domain Expert</option>
-                    </select>
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-xs text-indigo-800">
+                    Public registration creates a Standard User account. Expert and Admin accounts are assigned by an Administrator.
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Password *</label>
@@ -773,15 +960,9 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 mb-1">System Role (Read-only)</label>
-                  <input type="text" disabled value={user?.role || ""} className="w-full border border-gray-200 bg-gray-50 text-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Update Password (Optional)</label>
-                  <input type="password" placeholder="Leave blank to keep current" value={profileForm.newPassword} onChange={(e) => setProfileForm({ ...profileForm, newPassword: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none" />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 mb-1">System Role (Read-only)</label>
+                <input type="text" disabled value={user?.role || ""} className="w-full border border-gray-200 bg-gray-50 text-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none" />
               </div>
 
               <div className="pt-2">
@@ -789,6 +970,21 @@ export default function App() {
                   Save Changes
                 </button>
               </div>
+            </form>
+
+            <form onSubmit={handleChangePassword} className="space-y-4 mt-8 pt-6 border-t border-gray-100">
+              <h3 className="text-sm font-bold text-gray-900">Change Password</h3>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Current Password</label>
+                <input type="password" required value={passwordForm.currentPassword} onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">New Password</label>
+                <input type="password" required minLength={8} value={passwordForm.newPassword} onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <button type="submit" className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded-lg py-2.5 text-sm font-semibold transition">
+                Change Password and Log Out
+              </button>
             </form>
           </div>
         )}
@@ -948,6 +1144,9 @@ export default function App() {
                                     <p className="text-xs text-gray-400 mt-1">Processed: {doc.timestamp}</p>
                                   </div>
                                   <div className="flex items-center space-x-2">
+                                    <button onClick={(event) => handleExportReport(doc.document_id, doc.document_name, event)} className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg font-bold transition">
+                                      Export DOCX
+                                    </button>
                                     <span className="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-bold">{doc.items.length} sentence(s)</span>
                                     <span className="text-xs text-gray-400">{isDocExpanded ? "▲" : "▼"}</span>
                                   </div>
@@ -1308,12 +1507,18 @@ export default function App() {
             {/* ROLE: COMPREHENSIVE ADMINISTRATIVE SPLIT WORKSPACE */}
             {user?.role === "Admin" && (
               <div className="space-y-6">
-                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                  <h3 className="text-lg font-bold">Admin Curation Console</h3>
-                  <p className="text-sm text-gray-500">Monitor raw user interactions alongside expert-approved structural audits.</p>
+                <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold">System Administration</h3>
+                    <p className="text-sm text-gray-500">Manage audit records and local user access.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setAdminView("audits")} className={`px-4 py-2 rounded-lg text-xs font-bold ${adminView === "audits" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>Audit Records</button>
+                    <button onClick={() => { setAdminView("users"); fetchAdminUsers(); }} className={`px-4 py-2 rounded-lg text-xs font-bold ${adminView === "users" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>User Management</button>
+                  </div>
                 </div>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {adminView === "audits" && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {[
                     { key: "pending", label: "Pending", headerClass: "text-blue-800 bg-blue-50 border-blue-100" },
                     { key: "locked", label: "Locked", headerClass: "text-yellow-800 bg-yellow-50 border-yellow-100" },
@@ -1361,7 +1566,47 @@ export default function App() {
                       </div>
                     </div>
                   ))}
-                </div>
+                </div>}
+
+                {adminView === "users" && (
+                  <div className="space-y-5">
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col lg:flex-row gap-3 lg:items-center">
+                      <input value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} placeholder="Search username, name, email or company" className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      <select value={adminRoleFilter} onChange={(e) => setAdminRoleFilter(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"><option>All</option><option>User</option><option>Expert</option><option>Admin</option></select>
+                      <select value={adminStatusFilter} onChange={(e) => setAdminStatusFilter(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"><option>All</option><option>Active</option><option>Disabled</option></select>
+                      <button onClick={openCreateUser} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold">Create Account</button>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {filteredAdminUsers.map((managedUser) => (
+                        <div key={managedUser.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+                          <div className="flex justify-between gap-3">
+                            <div><h4 className="font-bold text-gray-900">{managedUser.username}</h4><p className="text-xs text-gray-500">{managedUser.full_name} · {managedUser.email}</p><p className="text-xs text-gray-400">{managedUser.company_name || "No company"}</p></div>
+                            <span className={`h-fit px-2.5 py-1 rounded-full text-[10px] font-bold ${managedUser.is_active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>{managedUser.is_active ? "Active" : "Disabled"}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-center"><div className="bg-indigo-50 rounded-lg p-2"><p className="font-bold text-indigo-800">{managedUser.role}</p><p className="text-[10px] text-indigo-500">Role</p></div><div className="bg-gray-50 rounded-lg p-2"><p className="font-bold">{managedUser.submitted_document_count}</p><p className="text-[10px] text-gray-500">Submitted</p></div><div className="bg-gray-50 rounded-lg p-2"><p className="font-bold">{managedUser.reviewed_document_count}</p><p className="text-[10px] text-gray-500">Reviewed</p></div></div>
+                          <p className="text-[10px] text-gray-400">Created: {managedUser.created_at || "—"} · Last login: {managedUser.last_login_at || "Never"}</p>
+                          <div className="flex gap-2"><button onClick={() => openEditUser(managedUser)} className="flex-1 bg-indigo-50 text-indigo-700 rounded-lg py-2 text-xs font-bold">Edit</button><button disabled={managedUser.id === user.id} onClick={() => handleToggleManagedUser(managedUser)} className="flex-1 bg-red-50 text-red-700 rounded-lg py-2 text-xs font-bold disabled:bg-gray-50 disabled:text-gray-300">{managedUser.is_active ? "Disable" : "Enable"}</button></div>
+                        </div>
+                      ))}
+                    </div>
+                    {filteredAdminUsers.length === 0 && <p className="text-center text-sm text-gray-400 bg-white border border-dashed rounded-xl p-10">No accounts match these filters.</p>}
+                  </div>
+                )}
+
+                {adminUserModal && (
+                  <div className="fixed inset-0 bg-gray-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-6" onClick={() => setAdminUserModal(null)}>
+                    <form onSubmit={handleSaveManagedUser} className="bg-white rounded-2xl shadow-2xl p-7 w-full max-w-xl space-y-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-between items-center"><h3 className="text-lg font-bold">{adminUserModal === "create" ? "Create Account" : `Edit ${adminUserForm.username}`}</h3><button type="button" onClick={() => setAdminUserModal(null)} className="text-gray-400">✕</button></div>
+                      {adminUserError && <div className="bg-red-50 border border-red-100 text-red-700 p-3 rounded-lg text-xs">{adminUserError}</div>}
+                      {adminUserModal === "create" && <div><label className="block text-xs font-bold mb-1">Username</label><input required minLength={3} value={adminUserForm.username} onChange={(e) => setAdminUserForm({ ...adminUserForm, username: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><label className="block text-xs font-bold mb-1">Full Name</label><input required value={adminUserForm.full_name} onChange={(e) => setAdminUserForm({ ...adminUserForm, full_name: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div><div><label className="block text-xs font-bold mb-1">Email</label><input required type="email" value={adminUserForm.email} onChange={(e) => setAdminUserForm({ ...adminUserForm, email: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div></div>
+                      {adminUserModal === "create" && <div><label className="block text-xs font-bold mb-1">Initial Password</label><input required type="password" minLength={8} value={adminUserForm.password} onChange={(e) => setAdminUserForm({ ...adminUserForm, password: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><label className="block text-xs font-bold mb-1">Phone</label><input value={adminUserForm.phone_number} onChange={(e) => setAdminUserForm({ ...adminUserForm, phone_number: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div><div><label className="block text-xs font-bold mb-1">Company</label><input value={adminUserForm.company_name} onChange={(e) => setAdminUserForm({ ...adminUserForm, company_name: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div></div>
+                      <div><label className="block text-xs font-bold mb-1">Role</label><select value={adminUserForm.role} onChange={(e) => setAdminUserForm({ ...adminUserForm, role: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm bg-white"><option>User</option><option>Expert</option><option>Admin</option></select></div>
+                      <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg py-2.5 text-sm font-bold">Save Account</button>
+                    </form>
+                  </div>
+                )}
               </div>
             )}
 

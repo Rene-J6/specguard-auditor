@@ -30,9 +30,11 @@ The system is designed for offline operation with private data, using local SQLi
 
 Implemented in `app/` using FastAPI:
 
-- `app/main.py` — REST endpoints for auth, document upload, audit execution, expert workflows, notifications, and admin log management
+- `app/main.py` — REST endpoints for session auth, document upload, audit execution, expert workflows, notifications, reports, and administration
 - `app/model_engine.py` — Loads the fine-tuned LoRA model, embedding model, EasyOCR reader, and Chroma retrieval store
-- `app/database.py` — SQLite schema initialization, auth management, audit logging, expert review flows, notification records, and dataset export support
+- `app/database.py` — SQLite migrations, sessions, user management, audit logging, expert review flows, notifications, and dataset export support
+- `app/security.py` — HttpOnly-cookie session resolution and server-side role authorization
+- `app/reporting.py` — Owner-scoped DOCX audit report generation
 - `app/utils.py` — Text cleaning and PDF/image extraction helpers
 
 ### Frontend
@@ -117,14 +119,10 @@ python scripts/test_model.py
 ### 5. Start the backend API
 
 ```bash
-python app/main.py
+python main.py
 ```
 
-Or with Uvicorn:
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
+Do not enable Uvicorn reload around the Unsloth-generated cache files.
 
 ### 6. Start the frontend
 
@@ -146,6 +144,7 @@ Then open the local Vite URL shown in the terminal.
 2. Upload a PDF/image spec file for text extraction
 3. Run the compliance audit
 4. Review results and history
+5. Export an owner-scoped DOCX audit report from document history
 
 ### Domain expert
 
@@ -159,11 +158,20 @@ An expert can hold only one active document lock. Documents locked by another ex
 ### Admin
 
 1. Log in as an `Admin`
-2. Monitor records grouped as `PENDING`, `LOCKED`, `APPROVED`, or `REJECTED`
-3. Delete individual requirements or complete documents
-4. When deleting approved data, remove its corresponding exported training record
+2. Create User, Expert, or Admin accounts and manage their roles/status
+3. Monitor records grouped as `PENDING`, `LOCKED`, `APPROVED`, or `REJECTED`
+4. Delete individual requirements or complete documents
+5. When deleting approved data, remove its corresponding exported training record
 
 Admins do not approve requirement content; expert approval is final. Internal lifecycle and export states are not exposed in standard user history.
+
+### Authentication and account bootstrap
+
+- Public registration always creates a `User`; only an Admin can create or promote Expert/Admin accounts.
+- The API uses 12-hour server-side SQLite sessions in an HttpOnly cookie. Caller-provided usernames are not trusted for authorization.
+- Disabled accounts cannot log in and existing sessions are revoked after role/status changes.
+- Usernames are immutable because audit ownership is stored by username across the local databases.
+- For a clean database with no Admin, run `python scripts/create_admin.py` once from the repository root. The command refuses to run when an active Admin already exists.
 
 ---
 

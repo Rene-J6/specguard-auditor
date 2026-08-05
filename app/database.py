@@ -1,8 +1,10 @@
 import os
 import json
 import hashlib
+import secrets
 import shutil
 import sqlite3
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -33,6 +35,10 @@ TRAINING_FIELDS = (
     "suggested_rewrite",
 )
 LIFECYCLE_SCHEMA_VERSION = 2
+AUTH_SCHEMA_VERSION = 1
+SESSION_DURATION_HOURS = 12
+VALID_ROLES = {"User", "Expert", "Admin"}
+PASSWORD_METHOD = "pbkdf2:sha256:10000"
 
 
 def _connect_pool():
@@ -97,78 +103,529 @@ def _write_training_records(records):
 # =====================================================================
 # MODULE 1: USER MANAGEMENT & AUTHENTICATION (auth.db)
 # =====================================================================
-def init_auth_db():
-    """Initializes the User Management database to store credentials safely."""
-    os.makedirs(os.path.dirname(AUTH_DB_PATH), exist_ok=True)
+def _connect_auth():
     conn = sqlite3.connect(AUTH_DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            full_name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            role TEXT DEFAULT 'User'
-        )
-    """)
-    
-    # Secure profile migrations: Add Phone Number and Company Name dynamically
-    for col_name in ["phone_number", "company_name"]:
-        try:
-            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} TEXT")
-        except sqlite3.OperationalError:
-            pass # Column already exists
-            
-    conn.commit()
-    conn.close()
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
 
-def register_user(username, password, full_name, email, role="User", phone_number="", company_name=""):
-    """Hashes the password and saves a new user account with personal info."""
-    conn = sqlite3.connect(AUTH_DB_PATH)
-    cursor = conn.cursor()
-    hashed_pw = generate_password_hash(password, method='pbkdf2:sha256:10000')
-    
+
+def auth_backup_path():
+    return os.path.join(
+        os.path.dirname(AUTH_DB_PATH),
+        "auth.pre_session_auth_v1.backup.db",
+    )
+
+
+def _utc_timestamp(offset_hours=0):
+    value = datetime.now(timezone.utc) + timedelta(hours=offset_hours)
+    return value.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _validate_unique_auth_values(conn):
+    duplicate_username = conn.execute("""
+        SELECT username FROM users
+        GROUP BY username COLLATE NOCASE HAVING COUNT(*) > 1
+        LIMIT 1
+    """).fetchone()
+    duplicate_email = conn.execute("""
+        SELECT email FROM users
+        GROUP BY email COLLATE NOCASE HAVING COUNT(*) > 1
+        LIMIT 1
+    """).fetchone()
+    if duplicate_username or duplicate_email:
+        field = "username" if duplicate_username else "email"
+        raise RuntimeError(f"Case-insensitive duplicate {field} blocks auth migration.")
+
+
+def init_auth_db():
+    """Initializes and version-migrates the local authentication database."""
+    os.makedirs(os.path.dirname(AUTH_DB_PATH), exist_ok=True)
+    database_existed = os.path.exists(AUTH_DB_PATH)
+
+    if database_existed:
+        conn = _connect_auth()
+        try:
+            table_exists = conn.execute("""
+                SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'users'
+            """).fetchone()
+            if table_exists:
+                _validate_unique_auth_values(conn)
+                migration_table = conn.execute("""
+                    SELECT 1 FROM sqlite_master
+                    WHERE type = 'table' AND name = 'auth_schema_migrations'
+                """).fetchone()
+                current_version = (
+                    conn.execute(
+                        "SELECT COALESCE(MAX(version), 0) FROM auth_schema_migrations"
+                    ).fetchone()[0]
+                    if migration_table else 0
+                )
+                if current_version < AUTH_SCHEMA_VERSION:
+                    backup_path = auth_backup_path()
+                    if not os.path.exists(backup_path):
+                        shutil.copy2(AUTH_DB_PATH, backup_path)
+        finally:
+            conn.close()
+
+    conn = _connect_auth()
     try:
-        cursor.execute("""
-            INSERT INTO users (username, password_hash, full_name, email, role, phone_number, company_name) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (username, hashed_pw, full_name, email, role, phone_number, company_name))
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                full_name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                role TEXT DEFAULT 'User',
+                phone_number TEXT,
+                company_name TEXT,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT,
+                updated_at TEXT,
+                last_login_at TEXT
+            )
+        """)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
+        additions = {
+            "phone_number": "TEXT",
+            "company_name": "TEXT",
+            "is_active": "INTEGER NOT NULL DEFAULT 1",
+            "created_at": "TEXT",
+            "updated_at": "TEXT",
+            "last_login_at": "TEXT",
+        }
+        for column, definition in additions.items():
+            if column not in columns:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {column} {definition}")
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS auth_schema_migrations (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_hash TEXT UNIQUE NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        now = _utc_timestamp()
+        conn.execute("""
+            UPDATE users
+            SET is_active = COALESCE(is_active, 1),
+                created_at = COALESCE(created_at, ?),
+                updated_at = COALESCE(updated_at, ?)
+        """, (now, now))
+        _validate_unique_auth_values(conn)
+        conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_nocase
+            ON users(username COLLATE NOCASE)
+        """)
+        conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_nocase
+            ON users(email COLLATE NOCASE)
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at)
+        """)
+        conn.execute(
+            "INSERT OR IGNORE INTO auth_schema_migrations (version) VALUES (?)",
+            (AUTH_SCHEMA_VERSION,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _validate_account_fields(username, password, full_name, email, role):
+    username = (username or "").strip()
+    full_name = (full_name or "").strip()
+    email = (email or "").strip().lower()
+    if role not in VALID_ROLES:
+        return None, "Invalid role."
+    if not (3 <= len(username) <= 50):
+        return None, "Username must be between 3 and 50 characters."
+    if not full_name:
+        return None, "Full name is required."
+    if not email or "@" not in email:
+        return None, "A valid email is required."
+    if not (8 <= len(password or "") <= 128):
+        return None, "Password must be between 8 and 128 characters."
+    return (username, password, full_name, email, role), None
+
+
+def create_user_account(
+    username,
+    password,
+    full_name,
+    email,
+    role="User",
+    phone_number="",
+    company_name="",
+):
+    """Creates a role-controlled local account for registration or Admin use."""
+    normalized, error = _validate_account_fields(
+        username, password, full_name, email, role
+    )
+    if error:
+        return False, error
+    username, password, full_name, email, role = normalized
+    hashed_pw = generate_password_hash(password, method=PASSWORD_METHOD)
+    conn = _connect_auth()
+    try:
+        now = _utc_timestamp()
+        conn.execute("""
+            INSERT INTO users (
+                username, password_hash, full_name, email, role,
+                phone_number, company_name, is_active, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        """, (
+            username, hashed_pw, full_name, email, role,
+            (phone_number or "").strip(), (company_name or "").strip(), now, now,
+        ))
         conn.commit()
         return True, "Account registered successfully!"
     except sqlite3.IntegrityError:
-        return False, "Username already exists. Please choose another."
+        return False, "Username or email already exists."
     finally:
         conn.close()
 
-def verify_login(username_or_email: str, password: str):
-    conn = sqlite3.connect(AUTH_DB_PATH)
-    cursor = conn.cursor()
+
+def register_user(
+    username, password, full_name, email, phone_number="", company_name=""
+):
+    return create_user_account(
+        username, password, full_name, email, "User", phone_number, company_name
+    )
+
+
+def bootstrap_admin(username, password, full_name, email):
+    """Creates the first Admin only when no active Admin exists."""
+    init_auth_db()
+    conn = _connect_auth()
     try:
-        cursor.execute("""
-            SELECT id, password_hash, role, full_name 
-            FROM users 
-            WHERE username = ? OR email = ?
-        """, (username_or_email, username_or_email))
-        row = cursor.fetchone()
-        
-        if row and check_password_hash(row[1], password):
-            user_id = row[0]
-            current_hash = row[1]
-            
-            if not current_hash.startswith('pbkdf2:sha256:10000'):
-                new_fast_hash = generate_password_hash(password, method='pbkdf2:sha256:10000')
-                cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_fast_hash, user_id))
-                conn.commit()
-                
-            return True, row[2], row[3]
-            
-    except sqlite3.Error as e:
-        print(f"Auth database error: {e}")
+        active_admins = conn.execute("""
+            SELECT COUNT(*) FROM users WHERE role = 'Admin' AND is_active = 1
+        """).fetchone()[0]
     finally:
         conn.close()
-    return False, None, None
+    if active_admins:
+        return False, "An active Admin already exists; use Admin User Management."
+    return create_user_account(
+        username, password, full_name, email, role="Admin"
+    )
+
+
+def _user_row_to_dict(row, include_password=False):
+    if not row:
+        return None
+    result = {
+        "id": row["id"],
+        "username": row["username"],
+        "full_name": row["full_name"],
+        "email": row["email"],
+        "role": row["role"],
+        "phone_number": row["phone_number"] or "",
+        "company_name": row["company_name"] or "",
+        "is_active": bool(row["is_active"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+        "last_login_at": row["last_login_at"],
+    }
+    if include_password:
+        result["password_hash"] = row["password_hash"]
+    return result
+
+
+def get_user_by_username(username):
+    conn = _connect_auth()
+    try:
+        row = conn.execute("""
+            SELECT * FROM users WHERE username = ? COLLATE NOCASE
+        """, (username,)).fetchone()
+        return _user_row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def get_user_by_id(user_id):
+    conn = _connect_auth()
+    try:
+        return _user_row_to_dict(
+            conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        )
+    finally:
+        conn.close()
+
+
+def authenticate_user(username_or_email: str, password: str):
+    conn = _connect_auth()
+    try:
+        row = conn.execute("""
+            SELECT * FROM users
+            WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE
+        """, (username_or_email.strip(), username_or_email.strip())).fetchone()
+        if not row or not check_password_hash(row["password_hash"], password):
+            return None
+        if row["is_active"]:
+            now = _utc_timestamp()
+            conn.execute(
+                "UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?",
+                (now, now, row["id"]),
+            )
+            conn.commit()
+            row = conn.execute("SELECT * FROM users WHERE id = ?", (row["id"],)).fetchone()
+        return _user_row_to_dict(row, include_password=True)
+    finally:
+        conn.close()
+
+
+def verify_login(username_or_email: str, password: str):
+    """Compatibility wrapper for legacy callers."""
+    user = authenticate_user(username_or_email, password)
+    if not user or not user["is_active"]:
+        return False, None, None
+    return True, user["role"], user["full_name"]
+
+
+def _token_hash(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_session(user_id):
+    token = secrets.token_urlsafe(32)
+    conn = _connect_auth()
+    try:
+        conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (_utc_timestamp(),))
+        conn.execute("""
+            INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
+            VALUES (?, ?, ?, ?)
+        """, (
+            _token_hash(token), user_id, _utc_timestamp(),
+            _utc_timestamp(SESSION_DURATION_HOURS),
+        ))
+        conn.commit()
+        return token
+    finally:
+        conn.close()
+
+
+def get_session_user(token):
+    if not token:
+        return None
+    conn = _connect_auth()
+    try:
+        row = conn.execute("""
+            SELECT u.* FROM sessions s
+            JOIN users u ON u.id = s.user_id
+            WHERE s.token_hash = ? AND s.expires_at > ?
+        """, (_token_hash(token), _utc_timestamp())).fetchone()
+        if not row:
+            return None
+        if not row["is_active"]:
+            conn.execute("DELETE FROM sessions WHERE user_id = ?", (row["id"],))
+            conn.commit()
+            return None
+        return _user_row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def revoke_session(token):
+    if not token:
+        return
+    conn = _connect_auth()
+    try:
+        conn.execute("DELETE FROM sessions WHERE token_hash = ?", (_token_hash(token),))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def revoke_user_sessions(user_id):
+    conn = _connect_auth()
+    try:
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def change_user_password(user_id, current_password, new_password):
+    if not (8 <= len(new_password or "") <= 128):
+        return {"success": False, "code": "INVALID_PASSWORD"}
+    conn = _connect_auth()
+    try:
+        row = conn.execute(
+            "SELECT password_hash FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        if not row or not check_password_hash(row["password_hash"], current_password):
+            return {"success": False, "code": "INVALID_CURRENT_PASSWORD"}
+        conn.execute(
+            "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+            (generate_password_hash(new_password, method=PASSWORD_METHOD), _utc_timestamp(), user_id),
+        )
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        conn.commit()
+        return {"success": True}
+    finally:
+        conn.close()
+
+
+def update_user_profile_by_id(
+    user_id, full_name, email, phone_number="", company_name=""
+):
+    full_name = (full_name or "").strip()
+    email = (email or "").strip().lower()
+    if not full_name or not email or "@" not in email:
+        return {"success": False, "code": "INVALID_PROFILE"}
+    conn = _connect_auth()
+    try:
+        cursor = conn.execute("""
+            UPDATE users
+            SET full_name = ?, email = ?, phone_number = ?, company_name = ?,
+                updated_at = ?
+            WHERE id = ?
+        """, (
+            full_name, email, (phone_number or "").strip(),
+            (company_name or "").strip(), _utc_timestamp(), user_id,
+        ))
+        conn.commit()
+        return {"success": cursor.rowcount == 1}
+    except sqlite3.IntegrityError:
+        return {"success": False, "code": "DUPLICATE_EMAIL"}
+    finally:
+        conn.close()
+
+
+def list_managed_users():
+    conn = _connect_auth()
+    try:
+        users = [_user_row_to_dict(row) for row in conn.execute(
+            "SELECT * FROM users ORDER BY username COLLATE NOCASE"
+        ).fetchall()]
+    finally:
+        conn.close()
+
+    submitted = {}
+    reviewed = {}
+    if os.path.exists(SQLITE_DB_PATH):
+        pool = _connect_pool()
+        try:
+            submitted = dict(pool.execute("""
+                SELECT username,
+                       COUNT(DISTINCT COALESCE(document_id, 'log:' || id))
+                FROM audit_logs GROUP BY username
+            """).fetchall())
+            reviewed = dict(pool.execute("""
+                SELECT assigned_expert,
+                       COUNT(DISTINCT COALESCE(document_id, 'log:' || id))
+                FROM audit_logs
+                WHERE assigned_expert IS NOT NULL
+                  AND lifecycle_status IN ('APPROVED', 'REJECTED')
+                GROUP BY assigned_expert
+            """).fetchall())
+        finally:
+            pool.close()
+
+    for user in users:
+        user["submitted_document_count"] = submitted.get(user["username"], 0)
+        user["reviewed_document_count"] = reviewed.get(user["username"], 0)
+    return users
+
+
+def update_managed_user(
+    actor_user_id,
+    target_user_id,
+    full_name=None,
+    email=None,
+    phone_number=None,
+    company_name=None,
+    role=None,
+    is_active=None,
+):
+    conn = _connect_auth()
+    try:
+        target = conn.execute("SELECT * FROM users WHERE id = ?", (target_user_id,)).fetchone()
+        if not target:
+            return {"success": False, "code": "NOT_FOUND"}
+        new_role = role if role is not None else target["role"]
+        new_active = bool(is_active) if is_active is not None else bool(target["is_active"])
+        if new_role not in VALID_ROLES:
+            return {"success": False, "code": "INVALID_ROLE"}
+        if target_user_id == actor_user_id and is_active is False:
+            return {"success": False, "code": "CANNOT_DISABLE_SELF"}
+
+        loses_admin = target["role"] == "Admin" and target["is_active"] and (
+            new_role != "Admin" or not new_active
+        )
+        if loses_admin:
+            other_admins = conn.execute("""
+                SELECT COUNT(*) FROM users
+                WHERE role = 'Admin' AND is_active = 1 AND id != ?
+            """, (target_user_id,)).fetchone()[0]
+            if other_admins == 0:
+                return {"success": False, "code": "LAST_ACTIVE_ADMIN"}
+
+        loses_expert_access = target["role"] == "Expert" and (
+            new_role != "Expert" or not new_active
+        )
+        if loses_expert_access and os.path.exists(SQLITE_DB_PATH):
+            pool = _connect_pool()
+            try:
+                lock = pool.execute("""
+                    SELECT document_id, MAX(document_name) AS document_name
+                    FROM audit_logs
+                    WHERE assigned_expert = ? AND lifecycle_status = 'LOCKED'
+                    GROUP BY document_id LIMIT 1
+                """, (target["username"],)).fetchone()
+            finally:
+                pool.close()
+            if lock:
+                return {
+                    "success": False,
+                    "code": "ACTIVE_EXPERT_LOCK",
+                    "document_id": lock["document_id"],
+                    "document_name": lock["document_name"],
+                }
+
+        updates = {
+            "full_name": full_name.strip() if full_name is not None else target["full_name"],
+            "email": email.strip().lower() if email is not None else target["email"],
+            "phone_number": phone_number.strip() if phone_number is not None else (target["phone_number"] or ""),
+            "company_name": company_name.strip() if company_name is not None else (target["company_name"] or ""),
+            "role": new_role,
+            "is_active": int(new_active),
+        }
+        if not updates["full_name"] or not updates["email"] or "@" not in updates["email"]:
+            return {"success": False, "code": "INVALID_PROFILE"}
+        conn.execute("""
+            UPDATE users
+            SET full_name = ?, email = ?, phone_number = ?, company_name = ?,
+                role = ?, is_active = ?, updated_at = ?
+            WHERE id = ?
+        """, (
+            updates["full_name"], updates["email"], updates["phone_number"],
+            updates["company_name"], updates["role"], updates["is_active"],
+            _utc_timestamp(), target_user_id,
+        ))
+        if new_role != target["role"] or int(new_active) != target["is_active"]:
+            conn.execute("DELETE FROM sessions WHERE user_id = ?", (target_user_id,))
+        conn.commit()
+        return {"success": True, "user": get_user_by_id(target_user_id)}
+    except sqlite3.IntegrityError:
+        return {"success": False, "code": "DUPLICATE_EMAIL"}
+    finally:
+        conn.close()
 
 # =====================================================================
 # MODULE 3: AUDIT LOGS & DATA FLYWHEEL (training_pool.db)
@@ -588,6 +1045,60 @@ def fetch_user_history(username: str):
         conn.close()
     return df
 
+
+def fetch_user_document_report(document_id: str, username: str):
+    """Builds owner-scoped report data without exposing lifecycle metadata."""
+    conn = _connect_pool()
+    try:
+        rows = conn.execute("""
+            SELECT id, document_name, requirement, matched_rule, model_output,
+                   lifecycle_status, expert_evaluation, expert_rewrite
+            FROM audit_logs
+            WHERE document_id = ? AND username = ?
+            ORDER BY id
+        """, (document_id, username)).fetchall()
+    finally:
+        conn.close()
+    if not rows:
+        return None
+
+    standard_counts = {}
+    items = []
+    expert_modified_count = 0
+    for row in rows:
+        analysis, suggested_rewrite = parse_model_output_python(row["model_output"])
+        source = (row["matched_rule"] or "General Standards").split(" | ", 1)[0]
+        standard_counts[source] = standard_counts.get(source, 0) + 1
+        expert_evaluation = None
+        expert_rewrite = None
+        if row["lifecycle_status"] == LIFECYCLE_APPROVED:
+            expert_evaluation = row["expert_evaluation"] or None
+            expert_rewrite = row["expert_rewrite"] or None
+            if (
+                (expert_evaluation or "").strip() != analysis.strip()
+                or (expert_rewrite or "").strip() != suggested_rewrite.strip()
+            ):
+                expert_modified_count += 1
+        items.append({
+            "id": row["id"],
+            "requirement": row["requirement"] or "",
+            "matched_rule": row["matched_rule"] or "",
+            "analysis": analysis,
+            "suggested_rewrite": suggested_rewrite,
+            "expert_evaluation": expert_evaluation,
+            "expert_rewrite": expert_rewrite,
+        })
+
+    return {
+        "document_id": document_id,
+        "document_name": rows[0]["document_name"] or "Untitled Document",
+        "generated_at": _utc_timestamp(),
+        "total_requirements": len(items),
+        "standard_counts": standard_counts,
+        "expert_modified_count": expert_modified_count,
+        "items": items,
+    }
+
 def get_user_details(username: str):
     conn = sqlite3.connect(AUTH_DB_PATH)
     cursor = conn.cursor()
@@ -886,20 +1397,41 @@ def fetch_user_notifications(username: str):
         } for r in rows
     ]
 
-def mark_notification_as_read(notification_id: int):
+def mark_notification_as_read(notification_id: int, username: str):
     conn = sqlite3.connect(SQLITE_DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("UPDATE notifications SET is_read = 1 WHERE id = ?", (notification_id,))
+    cursor.execute(
+        "UPDATE notifications SET is_read = 1 WHERE id = ? AND username = ?",
+        (notification_id, username),
+    )
     conn.commit()
+    changed = cursor.rowcount == 1
     conn.close()
+    return changed
 
-def delete_notification(notification_id: int):
-    """Deletes an unread/read alert entirely from the Relational storage."""
+def delete_notification(notification_id: int, username: str):
+    """Deletes only a notification owned by the authenticated User."""
     conn = sqlite3.connect(SQLITE_DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM notifications WHERE id = ?", (notification_id,))
+    cursor.execute(
+        "DELETE FROM notifications WHERE id = ? AND username = ?",
+        (notification_id, username),
+    )
     conn.commit()
+    changed = cursor.rowcount == 1
     conn.close()
+    return changed
+
+
+def fetch_notification_comparison(notification_id: int, username: str):
+    conn = sqlite3.connect(SQLITE_DB_PATH)
+    row = conn.execute("""
+        SELECT document_id FROM notifications WHERE id = ? AND username = ?
+    """, (notification_id, username)).fetchone()
+    conn.close()
+    if not row:
+        return None
+    return fetch_document_comparison(row[0], username)
 
 def fetch_document_comparison(document_id: str, username: str):
     """Retrieves comparative requirements. Shows ONLY the specific blocks modified by the expert."""

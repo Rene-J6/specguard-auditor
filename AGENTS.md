@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENT.md
 
 # SpecGuard - AI Coding Instructions
 
@@ -252,3 +252,7 @@ A task is complete when:
 - Error handling is included.
 - Naming is consistent.
 - Documentation/comments are updated where necessary.
+
+## End of Each Coding Session
+
+At the end of every completed coding session, always update HANDOFF.md before finishing.
