@@ -1,0 +1,15 @@
+{
+  "train_count": 1400,
+  "validation_count": 300,
+  "train_class_counts": {
+    "1": 700,
+    "0": 700
+  },
+  "validation_class_counts": {
+    "1": 150,
+    "0": 150
+  },
+  "rejected_batches": {},
+  "exact_duplicates_removed": 161,
+  "near_duplicates_removed": 236
+}

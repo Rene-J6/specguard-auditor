@@ -10,10 +10,12 @@ from fastapi.testclient import TestClient
 
 fake_torch = types.ModuleType("torch")
 fake_torch.__file__ = str(Path(tempfile.gettempdir()) / "torch.py")
+inserted_fake_torch = "torch" not in sys.modules
 sys.modules.setdefault("torch", fake_torch)
 
 fake_engine = types.ModuleType("app.model_engine")
 fake_engine.load_pipeline_resources = lambda: (None, None, None, None)
+inserted_fake_engine = "app.model_engine" not in sys.modules
 sys.modules.setdefault("app.model_engine", fake_engine)
 
 from app import database
@@ -21,6 +23,13 @@ from app.main import app
 
 
 class ApiAuthorizationTests(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        if inserted_fake_torch and sys.modules.get("torch") is fake_torch:
+            sys.modules.pop("torch")
+        if inserted_fake_engine and sys.modules.get("app.model_engine") is fake_engine:
+            sys.modules.pop("app.model_engine")
+
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         root = Path(self.temp_dir.name)

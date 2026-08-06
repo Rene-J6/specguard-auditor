@@ -1,0 +1,300 @@
+{"text": "All customer payments must be processed within 24 hours.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The mobile application will allow users to upload photos.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The admin interface should provide options to manage user accounts.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The system authenticates users via their credentials.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The reporting module generates daily sales summaries.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The smart factory robot performs a safety shutdown upon obstacle detection.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "Users add items to their shopping cart.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The application processes credit card transactions.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The system shall respond to user queries within 3 seconds 90% of the time.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The database must support concurrent access for at least 1000 users.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The manufacturing control system should achieve 99.9% uptime annually.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "User authentication completes in under 1 second.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "Data backup procedures ensure a recovery point objective of 1 hour.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The IoT gateway maintains a secure connection to the cloud backend.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "Users can easily find things.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The report shows useful information.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "It should work on all phones.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The company operates in a highly regulated industry.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "Existing manufacturing processes are largely manual.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "This specification outlines the scope of the upcoming software release.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The objective of the smart factory initiative is to improve efficiency.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "User refers to any individual interacting with the system.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "Administrator means a user with elevated privileges.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "Session timeout is the period of inactivity before automatic logout.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "Database is a structured collection of data.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "We will use a RESTful API for external integrations.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "Use asynchronous processing for background tasks.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "All developers must attend the weekly stand-up meeting.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The project manager will approve all scope changes.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "Testing documentation should be completed before release.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "Team members are required to use the version control system.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_035"}
+{"text": "The system shall allow users to register with an email address.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The enterprise software will generate a quarterly financial report.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The manufacturing line control system is required to initiate an emergency shutdown sequence.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The system displays the user's shopping cart contents.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The inventory management system tracks product expiration dates.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The mobile app uploads images to cloud storage.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The reporting tool aggregates daily sales data.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The website shall load fully within 3 seconds on a standard broadband connection.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The IoT device must securely transmit sensor data using TLS v1.3.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The enterprise application should support 500 concurrent users without performance degradation.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The system achieves 99.9% uptime per month.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The user interface should be intuitive.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "Make the reports better.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The system works reliably.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "Data must be secure.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "Existing customers report difficulty navigating the current website.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "Many users access the internet primarily through mobile devices.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The company previously used a third-party security audit firm.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "This document specifies the requirements for the new customer portal.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The project's aim is to automate the factory floor operations.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "This SRS defines the capabilities of the upcoming IoT sensor network.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The objective is to provide real-time reporting for sales teams.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "Two-Factor Authentication (2FA) is a security process requiring two distinct forms of identification.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "ERP System stands for Enterprise Resource Planning system.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "Frontend components will be built using a modern JavaScript framework like Vue.js.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The backend API should be developed using Python and Django.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "Consider using a message queue for asynchronous processing of large data batches.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "Database migrations should be managed with Alembic.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The mobile app's offline capabilities will leverage local storage.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "Project stakeholders must sign off on the final design document.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The development team will follow a test-driven development approach.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The budget needs to be approved before procurement of hardware.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "Contractors are required to adhere to the company's security policies.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_036"}
+{"text": "The user account management module shall allow password changes.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The smart-manufacturing system must log all successful product assembly steps.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "Mobile application users should receive push notifications for critical alerts.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The enterprise resource planning (ERP) system will generate monthly financial reports.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The drone control software needs to display real-time battery status.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The website displays product images and descriptions.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The system validates user input against predefined patterns.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The IoT sensor transmits temperature readings.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The mobile application stores user preferences locally.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The reporting tool aggregates data from multiple sources.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The system shall achieve a mean time to recovery (MTTR) of under 30 minutes.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "All sensitive data will be encrypted using FIPS 140-2 compliant algorithms.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The application processes 200 transactions per second.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The database stores 5 TB of historical data.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The response time for API calls averages 200ms.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The system supports localization for three languages.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The UI needs to be user-friendly and intuitive.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The system should have good security.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "It should integrate with our existing stuff.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The reports are easily understandable by managers.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The app works on all modern phones.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The company currently uses a manual spreadsheet system for inventory.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "Customers frequently report issues with slow page loads on the old website.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The previous IoT platform lacked real-time monitoring capabilities.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "Our existing mobile app does not support offline mode.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The current reporting solution provides only static monthly summaries.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "This document outlines the software requirements for the new smart thermostat.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "This specification aims to define the functionality of the revamped e-commerce portal.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The objective is to replace the outdated legacy enterprise system.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "This document serves to detail the expected behavior of the mobile banking application.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "API: Application Programming Interface, a set of defined interactions.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "Telemetry: Data collected from remote sensors or devices.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "GDPR: General Data Protection Regulation, a privacy and security law.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "Dashboard: A graphical user interface displaying key performance indicators.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "Single Sign-On (SSO): An authentication scheme allowing users to log in with a single ID.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The UI framework chosen is Vue.js due to team familiarity.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "Database schema changes require approval from the lead DBA.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The logging mechanism should write to a centralized ELK stack.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "Project stakeholders must review the wireframes before development starts.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "All code changes are required to pass automated tests.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "The project budget should include contingency for unexpected delays.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "New team members needs to complete security awareness training.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_037"}
+{"text": "Administrators should have the ability to reset user passwords.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The manufacturing system needs to record production output per shift.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The application presents a list of available products.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "Users click a button to add an item to their shopping cart.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The mobile app displays push notifications for new messages.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The dashboard shows real-time machine status.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The system generates daily sales reports.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The mobile application must maintain an average battery drain of less than 5% per hour.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The smart factory control system should achieve 99.9% uptime annually.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The reporting module needs to process 10,000 records per minute.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The backend service supports 1000 concurrent users.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "Data storage uses AES-256 encryption.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The app should be user-friendly.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "It needs to connect to the database somehow.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "Users can upload files.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "Current user authentication relies on an external OAuth provider.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The factory currently operates three production lines.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "Mobile users often access the platform from low-bandwidth areas.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The previous reporting tool frequently crashed during large data exports.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The purpose of this document is to outline the system's capabilities.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "This project aims to improve customer satisfaction by 15%.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The goal is to develop a new inventory management system.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The objective of the mobile app is to provide on-the-go access to enterprise data.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "A \"widget\" refers to a configurable UI component.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "\"Downtime\" is defined as any period the system is unavailable.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "\"Sensor data\" includes temperature, pressure, and humidity readings.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "Implement data caching to improve performance for frequently accessed reports.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "Store user preferences in a NoSQL database for flexible schema.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "Integrate with the existing payment gateway via their REST API.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "All code commits will include a descriptive message.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The project budget needs to be approved by senior management.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_038"}
+{"text": "The smart factory system should track the real-time status of each production line.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The reporting module will generate a monthly sales report in PDF format.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The manufacturing system records component defects.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The security camera captures video footage.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The mobile app presents push notifications.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The web application shall load all pages within 3 seconds for 95% of users.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The IoT device should operate continuously for at least 72 hours on a single charge.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The enterprise system needs to maintain data integrity with 99.999% accuracy.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The system response time for search queries averages under 1 second.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The application handles up to 500 transactions per second.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "Device battery life extends beyond 48 hours.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "Data storage capacity accommodates 10 terabytes.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "Make sure the app looks nice.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "Users can sometimes see their past orders.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "Currently, customer orders are processed manually via email.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The old system frequently crashed during peak usage.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "Existing manufacturing equipment uses outdated control software.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "This document outlines the software requirements for the new e-commerce platform.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The primary goal of this project is to enhance customer satisfaction.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The purpose of this system is to automate inventory management.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The objective is to improve data security across all enterprise systems.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "\"Biometric authentication\" involves verifying identity using unique biological characteristics.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "We chose a NoSQL database for scalability.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "Consider using a microservices architecture for future flexibility.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The payment gateway integration requires an external API key.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "Error logging will be handled by a third-party library.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The development team shall conduct daily stand-up meetings.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "Testers should provide test reports weekly.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "Stakeholders will attend the system demonstration next month.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The project budget needs to be finalized by Friday.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_039"}
+{"text": "The system shall display the current inventory levels for all active products.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The smart thermostat will adjust the temperature based on the user's weekly schedule.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The financial report generator should include a summary of quarterly earnings.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The shopping cart displays the total price including taxes.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The system generates an audit trail for all data modifications.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The sensor transmits temperature readings every 30 seconds.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The app shows a list of nearby restaurants.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "User authentication uses multi-factor verification.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The database system must achieve 99.9% uptime during business hours.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The device firmware should update over-the-air in under 5 minutes.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The mobile app will consume no more than 100MB of RAM during typical use.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "All stored user data needs to be encrypted using AES-256.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "System response time averages less than 2 seconds for critical transactions.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "Battery life extends beyond 72 hours under continuous operation.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The app works on Android versions 10 and above.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "Failed login attempts are logged for security auditing.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "Users can do stuff.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The UI looks nice.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "Make it secure.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "Data is saved somewhere.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "Currently, the legacy system relies on manual data entry for inventory management.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The company has expanded its operations into three new regions this year.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "Existing user accounts are stored in an unencrypted database.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The previous version of the app experienced frequent crashes.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "Customers often complain about the complexity of the current checkout process.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The goal is to develop a new mobile application for remote device control.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "This specification describes the requirements for the next generation of our IoT platform.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The objective of this initiative is to automate the monthly financial reporting.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "'Multi-factor authentication' requires at least two verification methods.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "We will use React for the frontend framework due to its component-based architecture.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The database schema will include a 'last_modified_timestamp' column for auditing.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "This feature can be implemented using a third-party payment gateway API.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The authentication module should leverage OAuth 2.0 for secure token management.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "Developers should follow the coding style guide strictly.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The project will be completed by the end of Q3.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "QA needs to sign off on all test plans before execution.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_040"}
+{"text": "The IoT device should log sensor data every 5 minutes.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The manufacturing system will generate a production report daily.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "Users are required to enter a strong password during registration.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The application processes credit card payments.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "A user adds items to a shopping cart.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The sensor transmits temperature readings.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The system archives completed reports.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The response time for login must not exceed 2 seconds under peak load.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The system shall support 1000 concurrent users.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The battery life of the device should last for at least 24 hours.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The manufacturing interface will update within 500 milliseconds.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The system has 99.9% uptime.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The mobile app consumes minimal battery.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The interface provides intuitive navigation.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The reports load quickly.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The system will be user-friendly.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The app does security stuff.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "Users can sometimes reset passwords.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "It needs to work good.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "Currently, customers submit orders via email.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The existing system uses a monolithic architecture.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "Our users are primarily small business owners.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The company operates in three different time zones.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "Competitors offer similar features.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The objective of this document is to define the system's capabilities.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The goal is to improve customer satisfaction.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The primary purpose is to automate data entry.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "This specification outlines the scope of the new mobile application.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "\"Throughput\" is the rate at which a system processes requests.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "We will use React for the frontend development.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "Implement a caching layer to improve performance.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The backend logic should be written in Python.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "Project managers should review all user stories weekly.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "Developers must adhere to the coding style guide.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The team will use Agile methodologies for development.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "Stakeholders are required to provide feedback by Friday.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "Testers shall create automated test scripts for new features.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_041"}
+{"text": "The smart factory controller must log all machine errors to the central database.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The mobile application should allow users to reset their password via email.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The reporting module is required to generate a sales summary report daily.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The user interface accepts alphanumeric input for the product search bar.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The inventory system updates stock levels upon successful order completion.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The manufacturing line initiates an emergency stop sequence on critical fault detection.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The mobile app presents a list of nearby charging stations.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The embedded system must achieve a mean time between failures (MTBF) of at least 10,000 hours.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The mobile banking app should support offline access to cached transaction history.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The security system will encrypt all transmitted data using AES-256.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The reporting server is required to process quarterly reports for 100 concurrent users without degradation.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The system processes large datasets efficiently.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The IoT device operates reliably in temperatures ranging from -20C to 70C.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The smart factory system maintains data integrity during power outages.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The backend service achieves 99.9% uptime.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The app needs to be fast and cool.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "Users should be able to log in.", "label": 1, "category": "poorly_written_requirement", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "Make the data secure.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "It would be good if the report looked nice.", "label": 1, "category": "poorly_written_requirement", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "Currently, customers call support to update their profiles, leading to long wait times.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The existing sensor network uses an outdated communication protocol.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "Many users experience difficulty navigating the current website's menu structure.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The factory production line frequently experiences unexpected downtime due to manual adjustments.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The previous mobile app version lacked support for modern Android devices.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The purpose of this document is to outline the functional and non-functional requirements for the new payment gateway.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "This project aims to automate inventory management across all warehouses.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The goal is to provide real-time monitoring of energy consumption in industrial facilities.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The objective of the mobile app redesign is to enhance user engagement and simplify navigation.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "This specification describes the requirements for the next generation of our secure messaging platform.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "\"Latency\" is the time delay between the cause and effect of some physical change in the system being observed.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "\"IoT Gateway\" means a physical device or software program that serves as a connection point between cloud and controllers, sensors, and intelligent devices.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "\"Use Case\" describes a list of actions or event steps defining the interactions between a role and a system to achieve a goal.", "label": 0, "category": "definition", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "Developers should use the existing authentication library rather than implementing a new one.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The database schema for user profiles will be denormalized for performance reasons.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "For the IoT device, consider using a low-power ARM processor.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The mobile app's splash screen animation should be less than 500ms.", "label": 0, "category": "implementation_note", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "Error messages are handled by a global exception handler.", "label": 0, "category": "implementation_note", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "Project managers must approve all scope changes in writing.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "All team members should attend the daily stand-up meeting.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The testing team will provide a test plan by Friday.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The development team is required to follow the coding style guide.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "Stakeholders shall review the wireframes before sprint planning.", "label": 0, "category": "hard_negative_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_042"}
+{"text": "The system shall allow users to log in with their credentials.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The manufacturing execution system needs to record production defects.", "label": 1, "category": "functional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The device measures ambient light levels.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The application saves user preferences automatically.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The system calculates machine uptime.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The report includes transaction details.", "label": 1, "category": "functional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The website shall load all content within 3 seconds on a standard broadband connection.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The IoT sensor must operate for at least 5 years on a single battery charge.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The manufacturing system will process 1000 orders per hour.", "label": 1, "category": "nonfunctional_modal", "has_modal": true, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The application supports concurrent usage by 500 users.", "label": 1, "category": "nonfunctional_no_modal", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "Existing user authentication relies on a legacy LDAP server.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "Previous sensor models frequently failed in high-humidity environments.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "Current mobile app users often complain about slow loading times.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The factory currently uses manual checks for quality control.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The company's data center experienced an outage last quarter.", "label": 0, "category": "background", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "This document aims to outline the features of the new e-commerce platform.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The project's goal is to develop a robust smart-home automation system.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}
+{"text": "The objective of this phase is to create a prototype for user testing.", "label": 0, "category": "purpose", "has_modal": false, "source": "synthetic", "generation_batch": "dev_batch_043"}

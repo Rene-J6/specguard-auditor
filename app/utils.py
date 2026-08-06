@@ -1,14 +1,15 @@
 import pdfplumber
 import cv2
 import numpy as np
+import re
 
 def clean_document_text(text: str) -> str:
     """Removes structural metadata noise and explicit escape character artifacts."""
-    text = text.replace("\n", " ").replace("\t", " ").replace("\r", " ")
-    import re
+    text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\t", " ")
     text = re.sub(r'\\', '', text)
-    text = re.sub(r'\s+', ' ', text)
-    return text.strip()
+    lines = [re.sub(r"[^\S\n]+", " ", line).strip() for line in text.split("\n")]
+    text = "\n".join(lines)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 def extract_text_from_file(file_path: str, file_type: str, ocr_engine) -> str:
     """Extracts text from digital PDFs or runs an advanced contrast-enhanced and upscaled OCR for handwriting."""
@@ -49,7 +50,7 @@ def extract_text_from_file(file_path: str, file_type: str, ocr_engine) -> str:
             if results:
                 # When paragraph=True, results are structured as [ [box_coords, "merged paragraph text"], ... ]
                 lines = [str(line[1]) for line in results if line and len(line) > 1]
-                raw_text = " ".join(lines)
+                raw_text = "\n\n".join(lines)
         except Exception as ocr_err:
             print(f"EasyOCR text extraction failed: {ocr_err}")
         

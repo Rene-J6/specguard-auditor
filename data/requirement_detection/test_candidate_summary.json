@@ -1,0 +1,10 @@
+{
+  "candidate_count": 337,
+  "class_counts": {
+    "1": 169,
+    "0": 168
+  },
+  "development_near_duplicates_removed": 92,
+  "exact_duplicates_removed": 5,
+  "near_duplicates_removed": 16
+}

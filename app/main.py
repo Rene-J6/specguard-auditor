@@ -22,7 +22,6 @@ except Exception as e:
 # =====================================================================
 import gc
 import io
-import re  
 import warnings
 import shutil
 import uuid
@@ -65,6 +64,9 @@ if __package__ in {None, ""}:
     from reporting import build_docx_report
     from utils import clean_document_text, extract_text_from_file
     from model_engine import load_pipeline_resources
+    from requirement_detector import (
+        RequirementDetector, load_requirement_detector, segment_document,
+    )
 else:
     from .database import (
         init_sqlite_pool, log_audit_to_db, fetch_unvalidated_logs, 
@@ -92,6 +94,9 @@ else:
     from .reporting import build_docx_report
     from .utils import clean_document_text, extract_text_from_file
     from .model_engine import load_pipeline_resources
+    from .requirement_detector import (
+        RequirementDetector, load_requirement_detector, segment_document,
+    )
 
 # Initialize databases
 init_sqlite_pool()
@@ -112,16 +117,18 @@ model = None
 tokenizer = None
 ocr_engine = None
 db = None
+requirement_detector = RequirementDetector()
 
 @app.on_event("startup")
 def startup_event():
-    global model, tokenizer, ocr_engine, db
+    global model, tokenizer, ocr_engine, db, requirement_detector
     try:
         model, tokenizer, ocr_engine, db = load_pipeline_resources()
         print("SpecGuard Core Engine components loaded successfully.")
     except Exception as e:
         print(f"Error initializing core engine components: {e}")
         model = tokenizer = ocr_engine = db = None
+    requirement_detector = load_requirement_detector()
 
 # =====================================================================
 # ROUTING CONTROLLER ENDPOINTS
@@ -258,17 +265,12 @@ def run_audit(payload: AnalysisRequest, current_user=Depends(require_user)):
     if not all([model, tokenizer, db]):
         raise HTTPException(status_code=503, detail="AI engine is not initialized.")
 
-    sentences = re.split(r'(?<=[.!?]) +', payload.raw_text)
-    keywords = ["shall", "should", "must", "needs to", "will", "required to"]
-    reqs = [
-        s.strip().replace("\n", " ") 
-        for s in sentences 
-        if any(k in s.lower() for k in keywords) and len(s.strip()) > 15
-    ]
+    predictions = requirement_detector.predict_many(segment_document(payload.raw_text))
+    reqs = [item["text"] for item in predictions if item["is_requirement"]]
 
     if not reqs:
         def empty_generator():
-            yield json.dumps({"type": "empty", "message": "No compliance keywords found."}) + "\n"
+            yield json.dumps({"type": "empty", "message": "No requirements detected."}) + "\n"
         return StreamingResponse(empty_generator(), media_type="text/event-stream")
 
     document_id = f"doc_{uuid.uuid4().hex[:8]}"

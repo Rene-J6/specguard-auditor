@@ -1,4 +1,5 @@
 sentence-transformers
+scikit-learn
 langchain-google-genai
 google-genai
 

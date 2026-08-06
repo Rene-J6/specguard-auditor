@@ -16,7 +16,7 @@ The system is designed for offline operation with private data, using local SQLi
 
 - Accepts uploaded specification documents via a web UI
 - Extracts text from PDFs and images using OCR
-- Identifies requirement statements using compliance-related keywords
+- Identifies requirement statements with a local MiniLM + Logistic Regression classifier and keyword fallback
 - Retrieves related standard clauses from a local Chroma vector store
 - Generates natural-language analysis and rewrite suggestions using a fine-tuned local LLM
 - Logs audit results for user history, expert review, and admin lifecycle management
@@ -35,6 +35,7 @@ Implemented in `app/` using FastAPI:
 - `app/database.py` — SQLite migrations, sessions, user management, audit logging, expert review flows, notifications, and dataset export support
 - `app/security.py` — HttpOnly-cookie session resolution and server-side role authorization
 - `app/reporting.py` — Owner-scoped DOCX audit report generation
+- `app/requirement_detector.py` — Structure-aware segmentation, local ML detection, and keyword fallback
 - `app/utils.py` — Text cleaning and PDF/image extraction helpers
 
 ### Frontend
@@ -47,7 +48,9 @@ Implemented in `frontend/` using React + Vite + Tailwind CSS:
 ### Models & Knowledge Base
 
 - `models/finetuned/sirim_specialist_lora/` — Local fine-tuned LoRA adapter weights and tokenizer
+- `models/requirement_detector/` — Local MiniLM encoder, Logistic Regression classifier, and activation metadata
 - `data/knowledge_base/chroma_db/` — Persisted Chroma DB for semantic retrieval
+- `data/requirement_detection/` — Detection train/validation data and the manually reviewed test workflow
 - `data/training/dataset.jsonl` — Training dataset collected from expert validation and synthetic generation
 
 ---
@@ -62,7 +65,7 @@ Dependencies are declared in `requirements.txt`. Key packages include:
 - `pydantic`, `python-multipart`
 - `easyocr`, `opencv-python`, `pdfplumber`, `python-docx`
 - `langchain-huggingface`, `langchain-chroma`, `langchain-community`
-- `sentence-transformers`, `chromadb`
+- `sentence-transformers`, `scikit-learn`, `chromadb`
 - `unsloth`, `trl`, `peft`, `accelerate`, `bitsandbytes`
 - `pandas`, `openpyxl`, `python-dotenv`
 - `werkzeug`
@@ -115,6 +118,71 @@ To verify the saved model adapter:
 ```bash
 python scripts/test_model.py
 ```
+
+### Phase 2A requirement detector
+
+The requirement detector is independent from RAG and the Llama audit model. It
+uses CPU-only `all-MiniLM-L6-v2` embeddings and Logistic Regression. If the
+local artifact is missing, disabled, corrupt, or fails during inference, the
+original modal-keyword detector processes the whole document batch instead.
+
+Generate two synthetic development pilot batches manually; Gemini is never
+imported by the backend and no user document is sent to it:
+
+```bash
+python scripts/generate_requirement_detection_data.py --mode dev --start 1 --batches 2
+```
+
+Inspect the pilot before expanding the development pool and preparing the
+1,400/300 split:
+
+```bash
+python scripts/generate_requirement_detection_data.py --mode dev --start 3 --batches 42
+python scripts/prepare_requirement_detection_data.py prepare-development --input-dir outputs/requirement_detection/generated/dev
+```
+
+Generate independent test candidates and export the Excel-compatible review
+CSV:
+
+```bash
+python scripts/generate_requirement_detection_data.py --mode test --start 1 --batches 9
+python scripts/prepare_requirement_detection_data.py export-review --input-dir outputs/requirement_detection/generated/test
+```
+
+Exact/near deduplication can reduce either pool. If preparation reports too few
+independent samples, generate new consecutively numbered top-up batches and
+rerun the same preparation command.
+
+In `data/requirement_detection/test_review.csv`, set every `decision` to
+`accept`, `relabel`, or `reject`. Relabelled rows also require
+`corrected_label` and `corrected_category`. Then freeze the balanced test set,
+train a disabled candidate, and run the one-time final evaluation:
+
+```bash
+python scripts/prepare_requirement_detection_data.py freeze-test
+python scripts/train_requirement_detector.py
+python scripts/evaluate_requirement_detector.py --activate
+```
+
+`--activate` only enables the artifact when frozen-test recall is at least 90%
+and its F1 is higher than the keyword baseline. The frozen test set must never
+be used for training, threshold selection, or repeated model selection.
+
+Current local Phase 2A checkpoint:
+
+- 1,400 training and 300 validation rows, each exactly 50/50.
+- Validation threshold `0.6`: accuracy `0.940`, precision `0.952`, recall
+  `0.927`, F1 `0.939`.
+- The owner accepted all 337 independent candidates; 300 balanced rows were
+  frozen with SHA-256
+  `e638b4b7997d0d156d56463727be8f9a35522929bdb1b87a896a0ff8a18f19d2`.
+- Frozen-test keyword baseline: accuracy `0.590`, recall `0.460`, F1 `0.529`.
+- Frozen-test ML classifier: accuracy `0.910`, precision `0.924`, recall
+  `0.893`, F1 `0.908`, with 11 false positives and 16 false negatives.
+- The activation gate failed because recall was below 90%. The project owner
+  explicitly accepted the 89.33% result, so the threshold-0.6 artifact is
+  enabled through a documented manual override.
+- Do not tune against or reuse this frozen test for another activation decision.
 
 ### 5. Start the backend API
 
@@ -183,12 +251,14 @@ FYP/
 │   ├── database.py
 │   ├── main.py
 │   ├── model_engine.py
+│   ├── requirement_detector.py
 │   └── utils.py
 ├── data/
 │   ├── knowledge_base/
 │   │   └── chroma_db/
 │   ├── logs/
 │   ├── temp/
+│   ├── requirement_detection/
 │   └── training/
 │       └── dataset.jsonl
 ├── frontend/
@@ -202,6 +272,10 @@ FYP/
 ├── outputs/
 ├── scripts/
 │   ├── data_generator.py
+│   ├── generate_requirement_detection_data.py
+│   ├── prepare_requirement_detection_data.py
+│   ├── train_requirement_detector.py
+│   ├── evaluate_requirement_detector.py
 │   ├── fine_tune_local.py
 │   ├── ingest_rag.py
 │   ├── setup_projects.py
