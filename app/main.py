@@ -22,9 +22,11 @@ except Exception as e:
 # =====================================================================
 import gc
 import io
+import tempfile
 import warnings
 import shutil
 import uuid
+from pathlib import Path
 from fastapi import Cookie, Depends, FastAPI, File, UploadFile, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -62,7 +64,10 @@ if __package__ in {None, ""}:
         require_user,
     )
     from reporting import build_docx_report
-    from utils import clean_document_text, extract_text_from_file
+    from utils import (
+        InvalidPdfError, NoExtractableTextError, clean_document_text,
+        extract_text_from_pdf,
+    )
     from model_engine import load_pipeline_resources
     from requirement_detector import (
         RequirementDetector, load_requirement_detector, segment_document,
@@ -93,7 +98,10 @@ else:
         require_user,
     )
     from .reporting import build_docx_report
-    from .utils import clean_document_text, extract_text_from_file
+    from .utils import (
+        InvalidPdfError, NoExtractableTextError, clean_document_text,
+        extract_text_from_pdf,
+    )
     from .model_engine import load_pipeline_resources
     from .requirement_detector import (
         RequirementDetector, load_requirement_detector, segment_document,
@@ -117,19 +125,18 @@ app.add_middleware(
 
 model = None
 tokenizer = None
-ocr_engine = None
 db = None
 requirement_detector = RequirementDetector()
 
 @app.on_event("startup")
 def startup_event():
-    global model, tokenizer, ocr_engine, db, requirement_detector
+    global model, tokenizer, db, requirement_detector
     try:
-        model, tokenizer, ocr_engine, db = load_pipeline_resources()
+        model, tokenizer, db = load_pipeline_resources()
         print("SpecGuard Core Engine components loaded successfully.")
     except Exception as e:
         print(f"Error initializing core engine components: {e}")
-        model = tokenizer = ocr_engine = db = None
+        model = tokenizer = db = None
     requirement_detector = load_requirement_detector()
 
 # =====================================================================
@@ -242,23 +249,37 @@ async def upload_document(
     file: UploadFile = File(...),
     current_user=Depends(require_user),
 ):
-    if not ocr_engine:
-        raise HTTPException(status_code=503, detail="OCR engine is not loaded.")
-    temp_path = os.path.join(TEMP_DIR, file.filename)
+    if Path(file.filename or "").suffix.casefold() != ".pdf" or file.content_type != "application/pdf":
+        raise HTTPException(status_code=415, detail="Only digital PDF files are supported.")
+
+    temp_path = None
     try:
-        with open(temp_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        extracted_raw = extract_text_from_file(temp_path, file.content_type, ocr_engine)
+        with tempfile.NamedTemporaryFile(
+            mode="wb", delete=False, dir=TEMP_DIR, suffix=".pdf"
+        ) as temp_file:
+            shutil.copyfileobj(file.file, temp_file)
+            temp_path = temp_file.name
+
+        with open(temp_path, "rb") as uploaded_pdf:
+            if uploaded_pdf.read(5) != b"%PDF-":
+                raise HTTPException(
+                    status_code=415,
+                    detail="Only digital PDF files are supported.",
+                )
+
+        extracted_raw = extract_text_from_pdf(temp_path)
         cleaned = clean_document_text(extracted_raw)
         return {"extracted_text": cleaned}
-    except Exception as e:
-        import traceback
-        print("\n❌ CRITICAL ERROR IN /api/analysis/upload:")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Text extraction failed: {e}")
+    except HTTPException:
+        raise
+    except InvalidPdfError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except NoExtractableTextError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Text extraction failed.") from exc
     finally:
-        if os.path.exists(temp_path):
+        if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
 
 @app.post("/api/analysis/run")

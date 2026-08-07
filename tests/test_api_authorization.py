@@ -4,6 +4,7 @@ import tempfile
 import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -14,12 +15,14 @@ inserted_fake_torch = "torch" not in sys.modules
 sys.modules.setdefault("torch", fake_torch)
 
 fake_engine = types.ModuleType("app.model_engine")
-fake_engine.load_pipeline_resources = lambda: (None, None, None, None)
+fake_engine.load_pipeline_resources = lambda: (None, None, None)
 inserted_fake_engine = "app.model_engine" not in sys.modules
 sys.modules.setdefault("app.model_engine", fake_engine)
 
 from app import database
-from app.main import app
+from app import main as main_module
+
+app = main_module.app
 
 
 class ApiAuthorizationTests(unittest.TestCase):
@@ -33,12 +36,16 @@ class ApiAuthorizationTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         root = Path(self.temp_dir.name)
+        self.root = root
         self.original_auth_path = database.AUTH_DB_PATH
         self.original_pool_path = database.SQLITE_DB_PATH
         self.original_dataset_path = database.EXPORT_JSONL_PATH
+        self.original_temp_path = main_module.TEMP_DIR
         database.AUTH_DB_PATH = str(root / "auth.db")
         database.SQLITE_DB_PATH = str(root / "training_pool.db")
         database.EXPORT_JSONL_PATH = str(root / "dataset.jsonl")
+        main_module.TEMP_DIR = str(root / "temp")
+        Path(main_module.TEMP_DIR).mkdir()
         Path(database.EXPORT_JSONL_PATH).write_text(
             json.dumps({
                 "bad_requirement": "Seed",
@@ -66,6 +73,7 @@ class ApiAuthorizationTests(unittest.TestCase):
         database.AUTH_DB_PATH = self.original_auth_path
         database.SQLITE_DB_PATH = self.original_pool_path
         database.EXPORT_JSONL_PATH = self.original_dataset_path
+        main_module.TEMP_DIR = self.original_temp_path
         self.temp_dir.cleanup()
 
     def login(self, username):
@@ -107,6 +115,53 @@ class ApiAuthorizationTests(unittest.TestCase):
 
         self.assertEqual(response.json()["username"], "user1")
         self.assertEqual(self.client.get("/api/auth/me").json()["role"], "User")
+
+    def test_upload_accepts_pdf_signature_and_uses_safe_temporary_path(self):
+        self.login("user1")
+        text = "The system shall preserve every approved audit record. " * 2
+        with patch("app.main.extract_text_from_pdf", return_value=text) as extractor:
+            response = self.client.post(
+                "/api/analysis/upload",
+                files={"file": ("../../escape.pdf", b"%PDF-1.4 sample", "application/pdf")},
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        temp_path = Path(extractor.call_args.args[0])
+        self.assertEqual(temp_path.parent, self.root / "temp")
+        self.assertFalse(temp_path.exists())
+
+    def test_upload_rejects_image_mime_extension_and_spoofed_signature(self):
+        self.login("user1")
+        cases = [
+            ("scan.png", b"\x89PNG", "image/png"),
+            ("notes.pdf", b"%PDF-1.4", "text/plain"),
+            ("fake.pdf", b"not a pdf", "application/pdf"),
+        ]
+        for filename, content, content_type in cases:
+            with self.subTest(filename=filename):
+                response = self.client.post(
+                    "/api/analysis/upload",
+                    files={"file": (filename, content, content_type)},
+                )
+                self.assertEqual(response.status_code, 415, response.text)
+
+    def test_upload_distinguishes_corrupt_and_textless_pdfs(self):
+        self.login("user1")
+        errors = [
+            (main_module.InvalidPdfError("Invalid or corrupted PDF."), 400),
+            (main_module.NoExtractableTextError(
+                "Only digital PDFs with extractable text are supported."
+            ), 422),
+        ]
+        for error, expected_status in errors:
+            with self.subTest(status=expected_status), patch(
+                "app.main.extract_text_from_pdf", side_effect=error
+            ):
+                response = self.client.post(
+                    "/api/analysis/upload",
+                    files={"file": ("sample.pdf", b"%PDF-1.4 sample", "application/pdf")},
+                )
+                self.assertEqual(response.status_code, expected_status, response.text)
 
 
 if __name__ == "__main__":

@@ -1011,7 +1011,7 @@ export default function App() {
                         <span className="text-4xl block mb-4">🔍</span>
                         <h4 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition">Requirement Analysis Workspace</h4>
                         <p className="text-xs text-gray-500 leading-relaxed mt-2 mb-6">
-                          Upload project specification files (.pdf, .png, .jpg), trigger localized OCR text extraction layers, and execute real-time compliance checks.
+                          Upload a digital PDF with selectable text and execute real-time compliance checks.
                         </p>
                         <button onClick={() => { setActiveTab("analysis"); setExtractedText(""); setAnalysisResults([]); }} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-6 py-2.5 rounded-xl transition shadow-sm">
                           ▶ Start Analysis
@@ -1046,11 +1046,12 @@ export default function App() {
                     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
                       <h3 className="text-lg font-bold mb-4">Requirement Analysis Workspace</h3>
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                        <input type="file" accept=".pdf,.png,.jpg" onChange={(e) => setSelectedFile(e.target.files[0])} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                        <input type="file" accept=".pdf,application/pdf" onChange={(e) => setSelectedFile(e.target.files[0])} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
                         <button onClick={handleExtractText} disabled={!selectedFile || isExtracting} className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white px-6 py-2 rounded-lg text-sm font-semibold transition">
-                          {isExtracting ? "Extracting..." : "Extract Text"}
+                          {isExtracting ? "Extracting..." : "Upload digital PDF"}
                         </button>
                       </div>
+                      <p className="text-xs text-gray-500 mt-3">Only PDFs with selectable text are supported.</p>
                     </div>
 
                     {extractedText && (

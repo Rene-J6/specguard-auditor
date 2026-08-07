@@ -1,7 +1,6 @@
 import os
 import gc
 import torch
-import easyocr  # Import EasyOCR instead of PaddleOCR
 from unsloth import FastLanguageModel
 
 if __package__ in {None, ""}:
@@ -35,10 +34,7 @@ def load_pipeline_resources():
     )
     FastLanguageModel.for_inference(model)
     
-    # 📷 MODEL 3: EasyOCR Reader (Natively utilizes your RTX 4060 GPU via PyTorch)
-    ocr_engine = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
-    
     # 🤖 MODEL 1: Router Embedding Layer (Forced on CPU to save VRAM)
     vectorstore = open_runtime_vectorstore(DB_DIR)
     
-    return model, tokenizer, ocr_engine, vectorstore
+    return model, tokenizer, vectorstore

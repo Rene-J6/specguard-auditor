@@ -24,12 +24,23 @@ class BrokenEncoder:
         raise RuntimeError("embedding failure")
 
 
-class FakeOcr:
-    def readtext(self, processed_input, paragraph):
-        return [
-            [None, "The system shall store records."],
-            [None, "Users can export reports."],
-        ]
+class FakePage:
+    def __init__(self, text):
+        self.text = text
+
+    def extract_text(self):
+        return self.text
+
+
+class FakePdf:
+    def __init__(self, texts):
+        self.pages = [FakePage(text) for text in texts]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
 
 
 class RequirementDetectorTests(unittest.TestCase):
@@ -83,16 +94,35 @@ class RequirementDetectorTests(unittest.TestCase):
             "Heading\nThe system shall work.\n\nUsers can log in.",
         )
 
-    def test_image_ocr_preserves_paragraph_boundaries(self):
-        from app.utils import extract_text_from_file
+    def test_digital_pdf_extraction_preserves_page_order_and_accepts_mixed_pdf(self):
+        from app.utils import extract_text_from_pdf
 
-        with patch("app.utils.cv2.imread", return_value=None):
-            extracted = extract_text_from_file("sample.png", "image/png", FakeOcr())
+        with patch("app.utils.pdfplumber.open", return_value=FakePdf([
+            "The system shall store records and preserve every approved requirement.",
+            "",
+            "Users can export reports after the audit is complete.",
+        ])):
+            extracted = extract_text_from_pdf("sample.pdf")
 
         self.assertEqual(
             extracted,
-            "The system shall store records.\n\nUsers can export reports.",
+            "The system shall store records and preserve every approved requirement."
+            "\n\n\n\nUsers can export reports after the audit is complete.",
         )
+
+    def test_pdf_without_enough_extractable_text_is_rejected(self):
+        from app.utils import NoExtractableTextError, extract_text_from_pdf
+
+        with patch("app.utils.pdfplumber.open", return_value=FakePdf(["Too short"])):
+            with self.assertRaises(NoExtractableTextError):
+                extract_text_from_pdf("scan.pdf")
+
+    def test_invalid_pdf_is_reported_separately(self):
+        from app.utils import InvalidPdfError, extract_text_from_pdf
+
+        with patch("app.utils.pdfplumber.open", side_effect=RuntimeError("broken")):
+            with self.assertRaises(InvalidPdfError):
+                extract_text_from_pdf("broken.pdf")
 
     def test_keyword_baseline_preserves_existing_substring_and_length_rules(self):
         from app.requirement_detector import has_modal_keyword, keyword_is_requirement

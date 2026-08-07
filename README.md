@@ -1,6 +1,6 @@
 # 🛡️ SpecGuard: Local AI Requirements Audit Platform
 
-SpecGuard is a sovereign, local-first compliance auditing platform for software requirements documents. It combines OCR-based document ingestion, semantic rule retrieval, and a fine-tuned local LLM to analyze, audit, and improve requirements against standards such as:
+SpecGuard is a sovereign, local-first compliance auditing platform for software requirements documents. It combines digital-PDF text extraction, semantic rule retrieval, and a fine-tuned local LLM to analyze, audit, and improve requirements against standards such as:
 
 - ISO/IEC/IEEE 29148
 - ISO/IEC 25010
@@ -14,8 +14,8 @@ The system is designed for offline operation with private data, using local SQLi
 
 ## 🚀 What This Project Does
 
-- Accepts uploaded specification documents via a web UI
-- Extracts text from PDFs and images using OCR
+- Accepts digital PDF specification documents via a web UI
+- Extracts selectable PDF text locally with `pdfplumber`
 - Identifies requirement statements with a local MiniLM + Logistic Regression classifier and keyword fallback
 - Retrieves related standard clauses from a local Chroma vector store
 - Generates natural-language analysis and rewrite suggestions using a fine-tuned local LLM
@@ -31,12 +31,12 @@ The system is designed for offline operation with private data, using local SQLi
 Implemented in `app/` using FastAPI:
 
 - `app/main.py` — REST endpoints for session auth, document upload, audit execution, expert workflows, notifications, reports, and administration
-- `app/model_engine.py` — Loads the fine-tuned LoRA model, embedding model, EasyOCR reader, and Chroma retrieval store
+- `app/model_engine.py` — Loads the fine-tuned LoRA model, embedding model, and Chroma retrieval store
 - `app/database.py` — SQLite migrations, sessions, user management, audit logging, expert review flows, notifications, and dataset export support
 - `app/security.py` — HttpOnly-cookie session resolution and server-side role authorization
 - `app/reporting.py` — Owner-scoped DOCX audit report generation
 - `app/requirement_detector.py` — Structure-aware segmentation, local ML detection, and keyword fallback
-- `app/utils.py` — Text cleaning and PDF/image extraction helpers
+- `app/utils.py` — Digital-PDF extraction and text-cleaning helpers
 
 ### Frontend
 
@@ -63,7 +63,7 @@ Dependencies are declared in `requirements.txt`. Key packages include:
 
 - `fastapi`, `uvicorn`
 - `pydantic`, `python-multipart`
-- `easyocr`, `opencv-python`, `pdfplumber`, `python-docx`
+- `pdfplumber`, `python-docx`
 - `langchain-huggingface`, `langchain-chroma`, `langchain-community`
 - `sentence-transformers`, `scikit-learn`, `chromadb`
 - `unsloth`, `trl`, `peft`, `accelerate`, `bitsandbytes`
@@ -118,6 +118,17 @@ To verify the saved model adapter:
 ```bash
 python scripts/test_model.py
 ```
+
+### Digital PDF input
+
+User uploads are limited to `.pdf` files with MIME type `application/pdf`, a
+valid `%PDF-` signature, and at least 50 extractable non-whitespace characters.
+Images, corrupted PDFs, and image-only scanned PDFs are rejected. Runtime OCR is
+not loaded.
+
+Mixed PDFs are accepted when their combined selectable text reaches the minimum.
+Image-only pages inside such a file are not detected or extracted; this is an
+accepted local-project constraint.
 
 ### Phase 2A requirement detector
 
@@ -256,7 +267,7 @@ Then open the local Vite URL shown in the terminal.
 ### Standard user
 
 1. Register or log in as a `User`
-2. Upload a PDF/image spec file for text extraction
+2. Upload a digital PDF with selectable text
 3. Run the compliance audit
 4. Review results and history
 5. Export an owner-scoped DOCX audit report from document history
