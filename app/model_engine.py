@@ -3,8 +3,11 @@ import gc
 import torch
 import easyocr  # Import EasyOCR instead of PaddleOCR
 from unsloth import FastLanguageModel
-from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+
+if __package__ in {None, ""}:
+    from retrieval import open_runtime_vectorstore
+else:
+    from .retrieval import open_runtime_vectorstore
 
 # Resolve absolute paths
 CURRENT_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -36,12 +39,6 @@ def load_pipeline_resources():
     ocr_engine = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
     
     # 🤖 MODEL 1: Router Embedding Layer (Forced on CPU to save VRAM)
-    embeddings = HuggingFaceEmbeddings(
-        model_name="BAAI/bge-m3",
-        model_kwargs={'device': 'cpu'}
-    )
-    
-    # Rule Base Index Matcher
-    vectorstore = Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
+    vectorstore = open_runtime_vectorstore(DB_DIR)
     
     return model, tokenizer, ocr_engine, vectorstore

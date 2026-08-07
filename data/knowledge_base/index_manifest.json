@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-07T15:56:31.580545+00:00",
+  "collection_name": "standards_v2",
+  "embedding_model": "BAAI/bge-m3",
+  "embedding_normalized": true,
+  "distance_metric": "cosine",
+  "chunk_max_characters": 1500,
+  "chunk_count": 1210,
+  "sources": [
+    {
+      "filename": "Industry4WRD.pdf",
+      "standard": "Industry4WRD",
+      "sha256": "c29f250c3c2836093274fd9262a0cc418d6e48749a4753b799a21fdaa58439a2",
+      "chunk_count": 220,
+      "exact_duplicates_removed": 22,
+      "parse_seconds": 154.4
+    },
+    {
+      "filename": "ISO 90012008 Quality management systems - Requirements (ISO).pdf",
+      "standard": "ISO 9001:2008",
+      "sha256": "96bc968f34f86992d37f932a235e70f3c7bc7e338ca450c7e08f96e2408ad9de",
+      "chunk_count": 104,
+      "exact_duplicates_removed": 0,
+      "parse_seconds": 8.03
+    },
+    {
+      "filename": "ISO IEC 25010 2011 (ISO).pdf",
+      "standard": "ISO/IEC 25010:2011",
+      "sha256": "95e8781b658a842bb89c849d47a7b0d25b0e5a77f0d947c059bd0d9b1f726921",
+      "chunk_count": 147,
+      "exact_duplicates_removed": 0,
+      "parse_seconds": 6.87
+    },
+    {
+      "filename": "ISO IEC IEEE 29148.pdf",
+      "standard": "ISO/IEC/IEEE 29148:2018",
+      "sha256": "6d1d83060b8cc8dca4cf69172ac68f16977d6a80cc47f1df8e03e01ed32fb491",
+      "chunk_count": 355,
+      "exact_duplicates_removed": 0,
+      "parse_seconds": 39.33
+    },
+    {
+      "filename": "Malaysia Economy Digital Blueprint.pdf",
+      "standard": "Malaysia Digital Economy Blueprint",
+      "sha256": "0bee1c77b35dfafd96d0f24484338fbe7b22af6d3ebb671800770b05c225160e",
+      "chunk_count": 384,
+      "exact_duplicates_removed": 3,
+      "parse_seconds": 21.2
+    }
+  ],
+  "status": "active",
+  "activated_at": "2026-08-07T17:20:22.3823509Z"
+}

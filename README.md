@@ -184,6 +184,53 @@ Current local Phase 2A checkpoint:
   enabled through a documented manual override.
 - Do not tune against or reuse this frozen test for another activation decision.
 
+### Phase 2B standards retrieval
+
+Phase 2B keeps the existing local CPU-only BGE-M3 embedding model and replaces
+character chunks with clause/section-aware chunks. The source manifest is
+`data/knowledge_base/sources.json`; every PDF must be listed before ingestion.
+
+Build a deterministic candidate index without touching the active index:
+
+```bash
+python scripts/ingest_rag.py
+```
+
+Use `--prepare-only` to validate parsing and deterministic IDs without loading
+BGE-M3. The candidate is written to the ignored
+`data/knowledge_base/chroma_candidate/` directory. Its tracked summary is
+`data/knowledge_base/index_manifest.json`.
+
+Prepare the validation set and owner-review CSV:
+
+```bash
+python scripts/prepare_rag_evaluation.py
+```
+
+After every row in `data/rag_evaluation/test_review.csv` is marked `accept`,
+`correct`, or `reject`, freeze the 48-row test set:
+
+```bash
+python scripts/prepare_rag_evaluation.py --import-review
+```
+
+Evaluate the existing baseline and clause-aware candidate on the same dataset:
+
+```bash
+python scripts/evaluate_rag.py data/rag_evaluation/test.jsonl --method baseline
+python scripts/evaluate_rag.py data/rag_evaluation/test.jsonl --method candidate --no-threshold
+```
+
+Runtime retrieval is deliberately fixed at `k=5`. It preserves five scored
+candidates internally and sends only Top 1 to the LLM. No hard score threshold
+is enabled because current validation could not establish a reliable cutoff;
+weakly related Top-1 matches are a documented limitation. Reranking is not part
+of this version.
+
+The clause-aware index is active at `data/knowledge_base/chroma_db/`. The
+pre-Phase-2B index is retained locally as
+`data/knowledge_base/chroma_backup_20260808_pre_phase2b/` for rollback.
+
 ### 5. Start the backend API
 
 ```bash

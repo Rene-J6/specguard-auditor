@@ -14,6 +14,8 @@ huggingface/
 # ==========================================
 data/temp/
 data/knowledge_base/chroma_db/
+data/knowledge_base/chroma_candidate/
+data/knowledge_base/chroma_backup_*/
 storage/*.db
 storage/*.sqlite
 

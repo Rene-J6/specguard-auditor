@@ -67,6 +67,7 @@ if __package__ in {None, ""}:
     from requirement_detector import (
         RequirementDetector, load_requirement_detector, segment_document,
     )
+    from retrieval import retrieve_standard_evidence
 else:
     from .database import (
         init_sqlite_pool, log_audit_to_db, fetch_unvalidated_logs, 
@@ -97,6 +98,7 @@ else:
     from .requirement_detector import (
         RequirementDetector, load_requirement_detector, segment_document,
     )
+    from .retrieval import retrieve_standard_evidence
 
 # Initialize databases
 init_sqlite_pool()
@@ -278,14 +280,33 @@ def run_audit(payload: AnalysisRequest, current_user=Depends(require_user)):
     def analysis_generator():
         total_reqs = len(reqs)
         for idx, current_req in enumerate(reqs):
-            docs = db.similarity_search(current_req, k=1)
-            if docs:
-                matched_doc = docs[0]
-                source_filename = os.path.basename(matched_doc.metadata.get('source', 'Unknown'))
-                clause_text = matched_doc.page_content
-            else:
-                source_filename = "General Standards"
-                clause_text = "Standard Requirements Engineering Framework"
+            retrieval = retrieve_standard_evidence(db, current_req, k=5)
+            matched_clause = retrieval["selected_clause"]
+            if not matched_clause:
+                source_filename = "No relevant standard"
+                clause_text = "No relevant standard clause was found."
+                final_analysis = clause_text
+                final_rewrite = "No rewrite suggested."
+                log_audit_to_db(
+                    current_user["username"], current_req,
+                    f"{source_filename} | {clause_text}", final_analysis,
+                    document_id, payload.document_name,
+                )
+                yield json.dumps({
+                    "type": "result",
+                    "progress": {"current": idx + 1, "total": total_reqs},
+                    "data": {
+                        "requirement": current_req,
+                        "source_filename": source_filename,
+                        "clause_text": clause_text,
+                        "analysis": final_analysis,
+                        "suggested_rewrite": final_rewrite,
+                    },
+                }) + "\n"
+                continue
+
+            source_filename = matched_clause["source"]
+            clause_text = matched_clause["text"]
 
             pipeline_input = f"Req: {current_req}\nRule: {clause_text}"
             prompt = (

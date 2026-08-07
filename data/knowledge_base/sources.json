@@ -1,0 +1,29 @@
+{
+  "sources": [
+    {
+      "filename": "ISO 90012008 Quality management systems - Requirements (ISO).pdf",
+      "standard": "ISO 9001:2008",
+      "parser": "numbered"
+    },
+    {
+      "filename": "ISO IEC 25010 2011 (ISO).pdf",
+      "standard": "ISO/IEC 25010:2011",
+      "parser": "numbered"
+    },
+    {
+      "filename": "ISO IEC IEEE 29148.pdf",
+      "standard": "ISO/IEC/IEEE 29148:2018",
+      "parser": "numbered"
+    },
+    {
+      "filename": "Industry4WRD.pdf",
+      "standard": "Industry4WRD",
+      "parser": "section"
+    },
+    {
+      "filename": "Malaysia Economy Digital Blueprint.pdf",
+      "standard": "Malaysia Digital Economy Blueprint",
+      "parser": "section"
+    }
+  ]
+}
