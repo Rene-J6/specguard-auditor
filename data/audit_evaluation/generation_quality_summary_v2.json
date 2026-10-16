@@ -1,0 +1,202 @@
+{
+  "structural_reliability": {
+    "first_attempt_valid_json_rate": 0.5625,
+    "final_attempt_valid_json_rate": 0.6041666666666666,
+    "schema_validation_rate": 1.0,
+    "missing_field_count": 6,
+    "invalid_enum_count": 0,
+    "grounding_failure_count": 6,
+    "unsupported_reference_count": 0,
+    "retry_rate": 0.08333333333333333,
+    "safe_failure_rate": 0.0,
+    "controlled_repair_rate": 0.8958333333333334,
+    "average_latency_ms": 15149.37932707835,
+    "p95_latency_ms": 26324.71839990467,
+    "validation_error_counts": {
+      "invalid_json": 22,
+      "invalid_schema": 13,
+      "missing_field": 6,
+      "ungrounded_evidence": 6
+    }
+  },
+  "retrieval_quality": {
+    "available": true,
+    "activation_ready": false,
+    "average_ms_per_requirement": 181.2993659712245,
+    "diagnostic": {
+      "threshold": 0.3,
+      "hit_at_1": 0.0,
+      "hit_at_5": 0.0,
+      "mrr": 0.0
+    }
+  },
+  "semantic_generation_quality": {
+    "by_model": {
+      "gemini-2.5-flash": {
+        "all": {
+          "case_count": 48,
+          "error_count": 0,
+          "faithfulness": {
+            "scored_count": 48,
+            "mean_normalized": 0.8020833333333334,
+            "median_normalized": 1.0,
+            "score_counts": {
+              "0": 9,
+              "1": 1,
+              "2": 38
+            }
+          },
+          "answer_relevance": {
+            "scored_count": 48,
+            "mean_normalized": 0.7708333333333334,
+            "median_normalized": 1.0,
+            "score_counts": {
+              "0": 10,
+              "1": 2,
+              "2": 36
+            }
+          }
+        }
+      },
+      "gemini-3.1-pro-preview": {
+        "all": {
+          "case_count": 48,
+          "error_count": 0,
+          "faithfulness": {
+            "scored_count": 48,
+            "mean_normalized": 0.6875,
+            "median_normalized": 1.0,
+            "score_counts": {
+              "0": 14,
+              "1": 2,
+              "2": 32
+            }
+          },
+          "answer_relevance": {
+            "scored_count": 48,
+            "mean_normalized": 0.7291666666666666,
+            "median_normalized": 1.0,
+            "score_counts": {
+              "0": 10,
+              "1": 6,
+              "2": 32
+            }
+          }
+        }
+      }
+    },
+    "judge_agreement": {
+      "gemini-2.5-flash vs gemini-3.1-pro-preview": {
+        "case_count": 48,
+        "faithfulness": {
+          "count": 48,
+          "exact_agreement": 0.7916666666666666,
+          "quadratic_weighted_kappa": 0.48070175438596496
+        },
+        "answer_relevance": {
+          "count": 48,
+          "exact_agreement": 0.8125,
+          "quadratic_weighted_kappa": 0.6259740259740261
+        }
+      }
+    }
+  },
+  "representative_failures": {
+    "gemini-2.5-flash": {
+      "faithfulness": [
+        {
+          "id": "rag_val_001",
+          "reason": "The explanation invents a general purpose for the system and incorrectly asserts that the requirement aligns with the provided evidence, which is about describing business results, not performing them.",
+          "unsupported_claims": [
+            "The system's purpose is to support business operations"
+          ]
+        },
+        {
+          "id": "rag_val_007",
+          "reason": "The explanation claims the requirement lacks a specific measurable transaction rate, but the requirement explicitly states \"at least 100 transactions per second\".",
+          "unsupported_claims": [
+            "The requirement lacks a specific measurable transaction rate",
+            "making it non-verifiable"
+          ]
+        },
+        {
+          "id": "rag_val_013",
+          "reason": "The explanation falsely attributes a detailed definition of 'authorized' (including role-based access control, multi-factor authentication, and time-based access restrictions) to ISO 25010:2011. The provided evidence for ISO 25010:2011 only defines 'confidentiality' and mentions 'authorized' without further elaboration.",
+          "unsupported_claims": [
+            "ISO 25010:2011 defines 'authorized' as a broader concept, including role-based access control, multi-factor authentication, and time-based access restrictions."
+          ]
+        }
+      ],
+      "answer_relevance": [
+        {
+          "id": "rag_val_007",
+          "reason": "The rewrite removes the specific transaction rate and replaces it with vague terms, failing to address the stated issue of lacking specificity. It also changes the original intent from throughput to response time."
+        },
+        {
+          "id": "rag_val_008",
+          "reason": "The explanation identifies that the evidence does not support the specific time limit in the requirement, but the suggested rewrite is identical to the original requirement and does not address this issue."
+        },
+        {
+          "id": "rag_val_010",
+          "reason": "The explanation does not identify a drafting issue in the original requirement. The suggested rewrite introduces a significant change (\"excluding caching and temporary data storage\") that is not prompted by the explanation and alters the original intent."
+        }
+      ]
+    },
+    "gemini-3.1-pro-preview": {
+      "faithfulness": [
+        {
+          "id": "rag_val_001",
+          "reason": "The explanation invents specific business operations and purposes (accurate invoicing) that are not stated in the provided evidence.",
+          "unsupported_claims": [
+            "The system's purpose is to support business operations, which includes accurate invoicing, aligning with this requirement."
+          ]
+        },
+        {
+          "id": "rag_val_007",
+          "reason": "The explanation falsely claims the requirement lacks a specific measurable transaction rate, contradicting the requirement which explicitly specifies 'at least 100 transactions per second'.",
+          "unsupported_claims": [
+            "The requirement lacks a specific measurable transaction rate, making it non-verifiable."
+          ]
+        },
+        {
+          "id": "rag_val_011",
+          "reason": "The explanation invents the condition that specific actions or timeframes for account lockout are required to satisfy 'user error protection', which is not supported by the provided evidence.",
+          "unsupported_claims": [
+            "making it incomplete for user error protection"
+          ]
+        }
+      ],
+      "answer_relevance": [
+        {
+          "id": "rag_val_007",
+          "reason": "The rewrite fails to address the issue raised in the explanation (lack of a measurable rate) by introducing vague terms ('reasonable timeframe') and completely abandons the original requirement's intent of 100 transactions per second."
+        },
+        {
+          "id": "rag_val_023",
+          "reason": "The suggested rewrite is identical to the original requirement and fails to address the verifiability issue raised in the explanation."
+        },
+        {
+          "id": "rag_val_030",
+          "reason": "The suggested rewrite is identical to the original requirement and fails to address the vagueness and lack of metrics described in the explanation."
+        }
+      ]
+    }
+  },
+  "expert_validation": {
+    "case_count": 10,
+    "complete": false,
+    "by_model": {
+      "gemini-2.5-flash": {
+        "complete": false,
+        "faithfulness": null,
+        "answer_relevance": null
+      },
+      "gemini-3.1-pro-preview": {
+        "complete": false,
+        "faithfulness": null,
+        "answer_relevance": null
+      }
+    }
+  },
+  "interpretation": "Descriptive only. Version 2 scores only the explanation and suggested rewrite shown to the Expert. The free-form baseline also received retrieved evidence, so these results do not establish improvement over a non-RAG model."
+}

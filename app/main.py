@@ -73,6 +73,7 @@ if __package__ in {None, ""}:
         RequirementDetector, load_requirement_detector, segment_document,
     )
     from retrieval import retrieve_standard_evidence
+    from audit_output import run_structured_audit
 else:
     from .database import (
         init_sqlite_pool, log_audit_to_db, fetch_unvalidated_logs, 
@@ -107,6 +108,7 @@ else:
         RequirementDetector, load_requirement_detector, segment_document,
     )
     from .retrieval import retrieve_standard_evidence
+    from .audit_output import run_structured_audit
 
 # Initialize databases
 init_sqlite_pool()
@@ -127,6 +129,29 @@ model = None
 tokenizer = None
 db = None
 requirement_detector = RequirementDetector()
+
+
+def _generate_audit_text(messages):
+    prompt = tokenizer.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True
+    ) + "{"
+    inputs = tokenizer([prompt], return_tensors="pt").to("cuda")
+    outputs = None
+    try:
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs, max_new_tokens=400, use_cache=True, do_sample=False
+            )
+        prompt_length = inputs["input_ids"].shape[-1]
+        return "{" + tokenizer.decode(
+            outputs[0][prompt_length:], skip_special_tokens=True
+        ).strip()
+    finally:
+        del inputs
+        if outputs is not None:
+            del outputs
+        torch.cuda.empty_cache()
+        gc.collect()
 
 @app.on_event("startup")
 def startup_event():
@@ -303,56 +328,23 @@ def run_audit(payload: AnalysisRequest, current_user=Depends(require_user)):
         for idx, current_req in enumerate(reqs):
             retrieval = retrieve_standard_evidence(db, current_req, k=5)
             matched_clause = retrieval["selected_clause"]
-            if not matched_clause:
-                source_filename = "No relevant standard"
-                clause_text = "No relevant standard clause was found."
-                final_analysis = clause_text
-                final_rewrite = "No rewrite suggested."
-                log_audit_to_db(
-                    current_user["username"], current_req,
-                    f"{source_filename} | {clause_text}", final_analysis,
-                    document_id, payload.document_name,
-                )
-                yield json.dumps({
-                    "type": "result",
-                    "progress": {"current": idx + 1, "total": total_reqs},
-                    "data": {
-                        "requirement": current_req,
-                        "source_filename": source_filename,
-                        "clause_text": clause_text,
-                        "analysis": final_analysis,
-                        "suggested_rewrite": final_rewrite,
-                    },
-                }) + "\n"
-                continue
-
-            source_filename = matched_clause["source"]
-            clause_text = matched_clause["text"]
-
-            pipeline_input = f"Req: {current_req}\nRule: {clause_text}"
-            prompt = (
-                f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
-                f"Analyze this software requirement against the matched framework standard rule.<|eot_id|>"
-                f"<|start_header_id|>user<|end_header_id|>\n{pipeline_input}<|eot_id|>"
-                f"<|start_header_id|>assistant<|end_header_id|>\n"
+            source_filename = (
+                matched_clause["source"] if matched_clause else "No relevant standard"
             )
-
-            inputs = tokenizer([prompt], return_tensors="pt").to("cuda")
-            with torch.no_grad():
-                outputs = model.generate(**inputs, max_new_tokens=400, use_cache=True)
-
-            res = tokenizer.decode(outputs[0], skip_special_tokens=True).split("assistant\n")[-1].strip()
-
-            final_analysis = res
-            final_rewrite = "No rewrite suggested."
-            if "### Suggested Rewrite" in res:
-                parts = res.split("### Suggested Rewrite")
-                final_analysis = parts[0].replace("### Analysis", "").strip()
-                final_rewrite = parts[1].strip()
+            clause_text = (
+                matched_clause["text"]
+                if matched_clause
+                else "No relevant standard clause was found."
+            )
+            audit_run = run_structured_audit(
+                current_req, matched_clause, _generate_audit_text
+            )
+            audit = audit_run.result
+            stored_output = audit.model_dump_json()
 
             log_audit_to_db(
                 current_user["username"], current_req, f"{source_filename} | {clause_text}",
-                res, document_id, payload.document_name
+                stored_output, document_id, payload.document_name
             )
 
             chunk_data = {
@@ -365,15 +357,12 @@ def run_audit(payload: AnalysisRequest, current_user=Depends(require_user)):
                     "requirement": current_req,
                     "source_filename": source_filename,
                     "clause_text": clause_text,
-                    "analysis": final_analysis,
-                    "suggested_rewrite": final_rewrite
+                    "analysis": audit.explanation,
+                    "suggested_rewrite": audit.suggested_rewrite,
+                    "audit": audit.model_dump(mode="json"),
                 }
             }
             yield json.dumps(chunk_data) + "\n"
-
-            del inputs, outputs
-            torch.cuda.empty_cache()
-            gc.collect()
 
     return StreamingResponse(analysis_generator(), media_type="text/event-stream")
 

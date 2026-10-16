@@ -672,6 +672,18 @@ export default function App() {
   };
 
   const parseModelOutput = (output) => {
+    try {
+      const audit = JSON.parse(output);
+      if (audit?.schema_version === 1 && audit?.explanation && audit?.suggested_rewrite) {
+        return {
+          analysis: audit.explanation,
+          rewrite: audit.suggested_rewrite,
+          audit
+        };
+      }
+    } catch {
+      // Historical records use the Markdown format below.
+    }
     let analysis = output;
     let rewrite = "No rewrite suggested.";
     if (output && output.includes("### Suggested Rewrite")) {
@@ -679,7 +691,7 @@ export default function App() {
       analysis = parts[0].replace("### Analysis", "").trim();
       rewrite = parts[1].trim();
     }
-    return { analysis, rewrite };
+    return { analysis, rewrite, audit: null };
   };
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -1097,8 +1109,9 @@ export default function App() {
                                   </div>
                                 </div>
                                 <div className="space-y-4 md:border-l border-gray-100 md:pl-6">
+                                  <StructuredAuditSummary audit={res.audit} />
                                   <div>
-                                    <h5 className="text-xs font-extrabold text-gray-500 uppercase mb-2">Compliance Evaluation:</h5>
+                                    <h5 className="text-xs font-extrabold text-gray-500 uppercase mb-2">Explanation:</h5>
                                     <p className="text-sm text-gray-700 whitespace-pre-line bg-gray-50 p-3 rounded-lg border border-gray-150">{res.analysis}</p>
                                   </div>
                                   <div>
@@ -1178,8 +1191,9 @@ export default function App() {
                                                 <p className="text-xs italic text-gray-600 bg-white p-2.5 rounded border border-gray-150 leading-relaxed">{item.matched_rule}</p>
                                               </div>
                                               <div className="space-y-3 border-t md:border-t-0 md:border-l border-gray-150 pt-3 md:pt-0 md:pl-4">
+                                                <StructuredAuditSummary audit={parsed.audit} />
                                                 <div>
-                                                  <span className="block text-[10px] font-bold text-indigo-700 uppercase tracking-wider mb-1">AI Audit Evaluation:</span>
+                                                  <span className="block text-[10px] font-bold text-indigo-700 uppercase tracking-wider mb-1">AI Explanation:</span>
                                                   <p className="text-xs whitespace-pre-line text-gray-700 bg-white p-2 rounded border border-gray-200">{parsed.analysis}</p>
                                                 </div>
                                                 <div>
@@ -1220,6 +1234,7 @@ export default function App() {
 
                       <div className="space-y-4">
                         {activeComparison.comparisons.map((item, idx) => {
+                          const parsed = parseModelOutput(item.model_output);
                           return (
                             <div key={item.id} className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
                               <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 text-xs font-bold text-indigo-700">Sentence set #{idx + 1}</div>
@@ -1237,8 +1252,10 @@ export default function App() {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t md:border-t-0 md:border-l border-gray-100 pt-3 md:pt-0 md:pl-4">
                                   <div className="space-y-3">
                                     <div className="bg-red-50/50 p-3 rounded-lg border border-red-100">
-                                      <span className="block text-[10px] font-bold text-red-800 uppercase mb-1">AI RAW EVALUATION (Analysis & Rewrite):</span>
-                                      <p className="text-xs whitespace-pre-line">{item.model_output}</p>
+                                      <span className="block text-[10px] font-bold text-red-800 uppercase mb-1">AI STRUCTURED AUDIT:</span>
+                                      <StructuredAuditSummary audit={parsed.audit} />
+                                      <p className="text-xs whitespace-pre-line mt-2">{parsed.analysis}</p>
+                                      <p className="text-xs font-bold mt-2">{parsed.rewrite}</p>
                                     </div>
                                   </div>
                                   <div className="space-y-3">
@@ -1373,6 +1390,7 @@ export default function App() {
                                 <div className="px-6 pb-6 pt-3 border-t border-gray-100 space-y-6">
                                   <div className="space-y-4">
                                     {expertActiveReqs.map((req, idx) => {
+                                      const parsed = parseModelOutput(req.model_output);
                                       return (
                                         <div key={req.id} className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
                                           <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-100 text-xs font-bold text-indigo-700">Sentence set #{idx + 1}</div>
@@ -1387,6 +1405,7 @@ export default function App() {
                                                 <span className="block text-[10px] font-extrabold text-gray-600 uppercase mb-1">Standard reference:</span>
                                                 <p className="text-xs italic text-gray-700">{req.matched_rule}</p>
                                               </div>
+                                              <StructuredAuditSummary audit={parsed.audit} />
                                             </div>
                                             
                                             {/* Right Column (Direct Edit Column): Analysis & Rewrite textareas pre-filled with raw AI outputs */}
@@ -1615,6 +1634,51 @@ export default function App() {
         )}
 
       </main>
+    </div>
+  );
+}
+
+const AUDIT_STATUS_STYLES = {
+  compliant: "bg-green-100 text-green-800",
+  partially_compliant: "bg-amber-100 text-amber-800",
+  non_compliant: "bg-red-100 text-red-800",
+  insufficient_evidence: "bg-gray-200 text-gray-700"
+};
+
+function StructuredAuditSummary({ audit }) {
+  if (!audit) return null;
+  const reference = audit.standard_reference;
+  return (
+    <div className="space-y-2 text-xs">
+      {audit.validation_status === "safe_failure" && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 font-semibold text-amber-800">
+          The AI result could not be validated. Review it manually.
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`rounded-full px-2.5 py-1 font-bold ${AUDIT_STATUS_STYLES[audit.compliance_status] || AUDIT_STATUS_STYLES.insufficient_evidence}`}>
+          {audit.compliance_status.replaceAll("_", " ")}
+        </span>
+        {audit.issue_types.map((issue) => (
+          <span key={issue} className="rounded-full bg-indigo-50 px-2 py-1 font-semibold text-indigo-700">
+            {issue.replaceAll("_", " ")}
+          </span>
+        ))}
+      </div>
+      {reference && (
+        <div className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600">
+          <p className="font-bold text-gray-800">{reference.standard}</p>
+          {(reference.clause || reference.title) && (
+            <p>{[reference.clause && `Clause ${reference.clause}`, reference.title].filter(Boolean).join(" - ")}</p>
+          )}
+          <p className="text-[10px] text-gray-400">{reference.source}</p>
+        </div>
+      )}
+      {audit.evidence && (
+        <div className="rounded-lg border-l-4 border-indigo-300 bg-indigo-50/60 p-2 italic text-gray-700">
+          Evidence: “{audit.evidence}”
+        </div>
+      )}
     </div>
   );
 }

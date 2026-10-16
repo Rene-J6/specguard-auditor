@@ -1,4 +1,5 @@
 import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -116,6 +117,31 @@ class ReportExportTests(unittest.TestCase):
 
         self.assertIsNone(report["items"][0]["expert_evaluation"])
         self.assertIsNone(report["items"][0]["expert_rewrite"])
+
+    def test_report_reads_structured_json_without_exposing_internal_fields(self):
+        from app.reporting import build_docx_report
+
+        output = json.dumps({
+            "schema_version": 1,
+            "validation_status": "validated",
+            "compliance_status": "non_compliant",
+            "issue_types": ["not_measurable"],
+            "standard_reference": None,
+            "evidence": "",
+            "explanation": "The response time is not measurable.",
+            "suggested_rewrite": "The system shall respond within two seconds.",
+        })
+        database.log_audit_to_db(
+            "owner", "The system shall respond quickly.", "Rule", output,
+            "doc_structured_report", "structured.pdf",
+        )
+
+        report = database.fetch_user_document_report("doc_structured_report", "owner")
+        text = self.document_text(build_docx_report(report)[0])
+
+        self.assertIn("The response time is not measurable.", text)
+        self.assertIn("The system shall respond within two seconds.", text)
+        self.assertNotIn("validation_status", text)
 
 
 if __name__ == "__main__":

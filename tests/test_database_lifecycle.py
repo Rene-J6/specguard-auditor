@@ -142,6 +142,46 @@ class DatabaseLifecycleTests(unittest.TestCase):
         self.assertNotIn("assigned_expert", columns)
         self.assertNotIn("export_status", columns)
 
+    def test_structured_output_approves_into_existing_four_field_schema(self):
+        output = json.dumps({
+            "schema_version": 1,
+            "validation_status": "validated",
+            "compliance_status": "non_compliant",
+            "issue_types": ["ambiguous"],
+            "standard_reference": {
+                "standard": "ISO/IEC/IEEE 29148:2018", "clause": "5.2.5",
+                "title": "Requirements quality", "source": "standard.pdf",
+            },
+            "evidence": "Requirements shall have one reasonable interpretation.",
+            "explanation": "The word quickly is ambiguous.",
+            "suggested_rewrite": "The system shall respond within two seconds.",
+        })
+        database.log_audit_to_db(
+            "user1", "The system shall respond quickly.", "standard.pdf | Rule",
+            output, "doc_structured", "structured.pdf",
+        )
+        database.lock_requirement_set("doc_structured", "expert1")
+        row = database.fetch_document_requirements(
+            "doc_structured", "expert1"
+        )["requirements"][0]
+        analysis, rewrite = database.parse_model_output_python(row["model_output"])
+
+        result = database.submit_expert_review(
+            "doc_structured", "expert1", [{
+                "id": row["id"], "expert_evaluation": analysis,
+                "expert_rewrite": rewrite,
+            }], True,
+        )
+        exported = self.dataset_records()[-1]
+
+        self.assertTrue(result["success"])
+        self.assertEqual(set(exported), set(database.TRAINING_FIELDS))
+        self.assertEqual(exported["analysis"], "The word quickly is ambiguous.")
+        self.assertEqual(
+            exported["suggested_rewrite"],
+            "The system shall respond within two seconds.",
+        )
+
 
 class LegacyMigrationTests(unittest.TestCase):
     def test_migration_maps_states_and_reduces_multiple_expert_locks(self):

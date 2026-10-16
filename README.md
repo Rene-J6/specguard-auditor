@@ -18,7 +18,7 @@ The system is designed for offline operation with private data, using local SQLi
 - Extracts selectable PDF text locally with `pdfplumber`
 - Identifies requirement statements with a local MiniLM + Logistic Regression classifier and keyword fallback
 - Retrieves related standard clauses from a local Chroma vector store
-- Generates natural-language analysis and rewrite suggestions using a fine-tuned local LLM
+- Generates validated, structured analysis and rewrite suggestions using a fine-tuned local LLM
 - Logs audit results for user history, expert review, and admin lifecycle management
 - Supports three roles: `User`, `Expert`, and `Admin`
 
@@ -36,6 +36,7 @@ Implemented in `app/` using FastAPI:
 - `app/security.py` — HttpOnly-cookie session resolution and server-side role authorization
 - `app/reporting.py` — Owner-scoped DOCX audit report generation
 - `app/requirement_detector.py` — Structure-aware segmentation, local ML detection, and keyword fallback
+- `app/audit_output.py` — Structured audit schema, grounding validation, controlled repair, retry, and legacy parsing
 - `app/utils.py` — Digital-PDF extraction and text-cleaning helpers
 
 ### Frontend
@@ -241,6 +242,79 @@ of this version.
 The clause-aware index is active at `data/knowledge_base/chroma_db/`. The
 pre-Phase-2B index is retained locally as
 `data/knowledge_base/chroma_backup_20260808_pre_phase2b/` for rollback.
+
+### Phase 2C structured audit output
+
+New audits use a Pydantic-validated schema with a compliance status, controlled
+issue tags, a server-owned standard reference, a grounded evidence excerpt,
+an explanation, and a suggested rewrite. Retrieval remains fixed at `k=5`, and
+only Top 1 is supplied to the LLM as evidence `E1`.
+
+The backend, rather than the model, supplies the standard name, clause, title,
+and source. Generated evidence must occur in E1 after whitespace normalization.
+Invalid output receives at most one deterministic retry; a second failure is
+stored and displayed as a safe `insufficient_evidence` result. Existing
+Markdown audit records remain readable through the shared legacy parser.
+
+The current LoRA was trained for Markdown rather than JSON. Runtime therefore
+uses an assistant `{` prefix and a constrained repair path for JSON-like Python
+dictionaries and the exact legacy Markdown format. Repair cannot introduce a
+new citation: it replaces evidence and reference metadata with the retrieved E1
+values and revalidates the complete result. This compatibility path is a known
+constraint, not a substitute for future structured-output fine-tuning.
+
+Run the fixed 48-case comparison without writing to the audit database:
+
+```bash
+python scripts/evaluate_audit_output.py
+```
+
+Use `--reuse-baseline` to retain the saved free-form baseline and rerun only the
+structured approach. Current automatic results are:
+
+- Free-form baseline parser success: `100%`; missing rewrite: `0%`.
+- Structured first-attempt native JSON: `47.92%`; final native JSON: `52.08%`.
+- Structured schema validation after controlled repair/retry: `97.92%`.
+- Retry rate: `10.42%`; safe-failure rate: `2.08%`.
+- Controlled-repair rate: `89.58%`.
+- Average latency: baseline `14.32 s`, structured `14.27 s` per requirement.
+
+These metrics are descriptive and are not an activation gate. The structured
+implementation remains enabled even when the model output needs repair. Complete
+the empty 0/1/2 quality scores in
+`data/audit_evaluation/manual_review.csv` before claiming semantic improvement
+over the baseline in the FYP report.
+
+Evaluate the saved structured RAG outputs for faithfulness and answer relevance:
+
+```bash
+python scripts/evaluate_rag_generation.py
+```
+
+This offline utility re-verifies that every saved output still matches the current
+Top-1 standard and clause, then uses Gemini 2.5 Flash as an evaluation-only judge.
+It sends only the fixed synthetic requirements and their retrieved excerpts; the
+runtime application remains local and never sends uploaded user documents. Use
+`--prepare-only` to create the blinded 15-case Expert sheet without calling Gemini,
+or `--summarize-only` after Expert scoring to regenerate agreement results.
+
+Current automated judge results over all 48 cases are descriptive and await Expert
+validation:
+
+- Faithfulness mean: `0.542`; median: `0.750`.
+- Answer-relevance mean: `0.740`; median: `1.000`.
+- Judge errors: `0/48`.
+- Expert validation: pending; all 15 blinded score rows remain empty.
+
+Structural validation, retrieval Hit@K/MRR, and semantic generation scores remain
+separate in `data/audit_evaluation/generation_quality_summary.md`. The existing
+free-form baseline also receives retrieved evidence, so these results do not show
+that RAG outperforms a non-RAG model.
+
+The audit stream retains the existing `analysis` and `suggested_rewrite` keys
+and adds the full result under `audit`. Experts may edit only the explanation
+and rewrite. The database schema and four-field fine-tuning export schema are
+unchanged.
 
 ### 5. Start the backend API
 

@@ -163,6 +163,56 @@ class ApiAuthorizationTests(unittest.TestCase):
                 )
                 self.assertEqual(response.status_code, expected_status, response.text)
 
+    def test_audit_stream_adds_validated_structure_and_stores_json(self):
+        self.login("user1")
+        requirement = "The system shall return results quickly."
+        evidence_text = "Requirements shall use measurable effectiveness criteria."
+        candidate = {
+            "standard": "ISO/IEC/IEEE 29148:2018",
+            "clause": "5.2.5",
+            "title": "Characteristics of individual requirements",
+            "source": "ISO IEC IEEE 29148.pdf",
+            "text": evidence_text,
+        }
+        generated = json.dumps({
+            "compliance_status": "non_compliant",
+            "issue_types": ["not_measurable"],
+            "evidence_id": "E1",
+            "evidence": evidence_text,
+            "explanation": "The word quickly has no measurable target.",
+            "suggested_rewrite": "The system shall return results within two seconds.",
+        })
+        with (
+            patch.object(main_module, "model", object()),
+            patch.object(main_module, "tokenizer", object()),
+            patch.object(main_module, "db", object()),
+            patch.object(main_module, "segment_document", return_value=[requirement]),
+            patch.object(
+                main_module.requirement_detector,
+                "predict_many",
+                return_value=[{"text": requirement, "is_requirement": True}],
+            ),
+            patch.object(
+                main_module,
+                "retrieve_standard_evidence",
+                return_value={"selected_clause": candidate},
+            ),
+            patch.object(main_module, "_generate_audit_text", return_value=generated),
+        ):
+            response = self.client.post(
+                "/api/analysis/run",
+                json={"raw_text": requirement, "document_name": "sample.pdf"},
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        chunk = json.loads(response.text.strip())
+        self.assertEqual(chunk["data"]["analysis"], chunk["data"]["audit"]["explanation"])
+        self.assertEqual(chunk["data"]["audit"]["compliance_status"], "non_compliant")
+        rows = database.fetch_user_history("user1")
+        stored = json.loads(rows.iloc[0]["model_output"])
+        self.assertEqual(stored["schema_version"], 1)
+        self.assertEqual(stored["validation_status"], "validated")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -8,6 +8,11 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 from werkzeug.security import generate_password_hash, check_password_hash
 
+if __package__ in {None, ""}:
+    from audit_output import parse_stored_audit
+else:
+    from .audit_output import parse_stored_audit
+
 # =====================================================================
 # PATH RESOLUTIONS
 # =====================================================================
@@ -1268,13 +1273,8 @@ def unlock_requirement_set(document_id: str, expert_username: str):
     return {"success": rows_updated > 0}
 
 def parse_model_output_python(output):
-    analysis = output or ""
-    rewrite = "No rewrite suggested."
-    if output and "### Suggested Rewrite" in output:
-        parts = output.split("### Suggested Rewrite")
-        analysis = parts[0].replace("### Analysis", "").strip()
-        rewrite = parts[1].strip()
-    return analysis, rewrite
+    parsed = parse_stored_audit(output)
+    return parsed["explanation"], parsed["suggested_rewrite"]
 
 def submit_expert_review(document_id: str, expert_username: str, reviews: list, is_approved: bool):
     """Finalizes one owned document and exports approved four-field records once."""

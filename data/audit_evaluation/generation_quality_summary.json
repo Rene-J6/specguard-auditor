@@ -1,0 +1,157 @@
+{
+  "structural_reliability": {
+    "first_attempt_valid_json_rate": 0.4791666666666667,
+    "final_attempt_valid_json_rate": 0.5208333333333334,
+    "schema_validation_rate": 0.9791666666666666,
+    "missing_field_count": 5,
+    "invalid_enum_count": 0,
+    "grounding_failure_count": 7,
+    "unsupported_reference_count": 0,
+    "retry_rate": 0.10416666666666667,
+    "safe_failure_rate": 0.020833333333333332,
+    "controlled_repair_rate": 0.8958333333333334,
+    "average_latency_ms": 14265.604524992037,
+    "p95_latency_ms": 27441.17769994773,
+    "validation_error_counts": {
+      "invalid_json": 27,
+      "invalid_schema": 10,
+      "missing_field": 5,
+      "ungrounded_evidence": 7
+    }
+  },
+  "retrieval_quality": {
+    "available": true,
+    "activation_ready": false,
+    "average_ms_per_requirement": 183.46543750036895,
+    "diagnostic": {
+      "threshold": 0.3,
+      "hit_at_1": 0.05,
+      "hit_at_5": 0.15,
+      "mrr": 0.08208333333333333,
+      "no_match_rejection_rate": 0.0
+    }
+  },
+  "semantic_generation_quality": {
+    "all": {
+      "case_count": 48,
+      "error_count": 0,
+      "faithfulness": {
+        "scored_count": 48,
+        "mean_normalized": 0.5416666666666666,
+        "median_normalized": 0.75,
+        "score_counts": {
+          "0": 20,
+          "1": 4,
+          "2": 24
+        }
+      },
+      "answer_relevance": {
+        "scored_count": 48,
+        "mean_normalized": 0.7395833333333334,
+        "median_normalized": 1.0,
+        "score_counts": {
+          "0": 10,
+          "1": 5,
+          "2": 33
+        }
+      }
+    },
+    "expected_match": {
+      "case_count": 40,
+      "error_count": 0,
+      "faithfulness": {
+        "scored_count": 40,
+        "mean_normalized": 0.5125,
+        "median_normalized": 0.5,
+        "score_counts": {
+          "0": 18,
+          "1": 3,
+          "2": 19
+        }
+      },
+      "answer_relevance": {
+        "scored_count": 40,
+        "mean_normalized": 0.7375,
+        "median_normalized": 1.0,
+        "score_counts": {
+          "0": 9,
+          "1": 3,
+          "2": 28
+        }
+      }
+    },
+    "no_match": {
+      "case_count": 8,
+      "error_count": 0,
+      "faithfulness": {
+        "scored_count": 8,
+        "mean_normalized": 0.6875,
+        "median_normalized": 1.0,
+        "score_counts": {
+          "0": 2,
+          "1": 1,
+          "2": 5
+        }
+      },
+      "answer_relevance": {
+        "scored_count": 8,
+        "mean_normalized": 0.75,
+        "median_normalized": 1.0,
+        "score_counts": {
+          "0": 1,
+          "1": 2,
+          "2": 5
+        }
+      }
+    }
+  },
+  "representative_failures": {
+    "faithfulness": [
+      {
+        "id": "rag_val_001",
+        "reason": "The retrieved context describes what should be included in a \"Mission, goals and objectives\" section (business results), not criteria for evaluating the compliance of a functional requirement. The audit's claim that the requirement is \"compliant\" with this clause is unsupported by the evidence.",
+        "unsupported_claims": [
+          "compliant",
+          "aligning with this requirement"
+        ]
+      },
+      {
+        "id": "rag_val_002",
+        "reason": "The audit invents a condition that a requirement about downloading invoices must include payment methods, and assumes the requirement falls under \"government services\" to link it to the evidence, neither of which is supported by the original requirement or the retrieved evidence.",
+        "unsupported_claims": [
+          "The implicit claim that the \"portal\" and \"customers\" in the requirement are related to \"government services\".",
+          "The claim that a requirement about \"downloading completed invoices\" is incomplete because it doesn't mention \"payment methods\" in the context of \"e-payment adoption\"."
+        ]
+      },
+      {
+        "id": "rag_val_005",
+        "reason": "The retrieved evidence (ISO 9001:2008 7.2.2) is a general quality management clause about reviewing requirements and customer focus, which does not provide specific criteria to evaluate the functional requirement about searching orders. The audit's conclusion of \"compliant\" is not supported by the provided evidence.",
+        "unsupported_claims": [
+          "compliant",
+          "none"
+        ]
+      }
+    ],
+    "answer_relevance": [
+      {
+        "id": "rag_val_005",
+        "reason": "The audit's diagnosis of \"compliant\" and \"no issues\" is based on irrelevant evidence, thus the suggested rewrite (no change) does not meaningfully address the requirement in relation to the provided context. The audit fails to identify the irrelevance of the evidence."
+      },
+      {
+        "id": "rag_val_007",
+        "reason": "The rewrite completely changes the original intent of specifying a measurable performance metric and replaces it with a vague, less measurable statement. It does not resolve the (incorrectly) diagnosed issue; instead, it removes the existing measurable rate."
+      },
+      {
+        "id": "rag_val_010",
+        "reason": "The rewrite fails to address the incorrectly diagnosed issue of 'not_measurable' as the original requirement was already measurable. Instead, it alters the original intent by adding an unsupported exclusion."
+      }
+    ]
+  },
+  "expert_validation": {
+    "case_count": 15,
+    "complete": false,
+    "faithfulness": null,
+    "answer_relevance": null
+  },
+  "interpretation": "Descriptive only. The free-form baseline also received retrieved evidence, so these results do not establish improvement over a non-RAG model."
+}
